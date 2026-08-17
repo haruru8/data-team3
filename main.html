@@ -113,8 +113,7 @@
     <h2 id="host-id-display" style="color:#4CAF50; word-break: break-all;">準備中...</h2>
     <div class="info-text">別タブで「部屋に入る」を選び、この文字列を入力してください。</div>
     <div id="host-error" class="alert-text"></div>
-    <label>参加人数（現在は2人テスト用）</label>
-    <input type="number" id="target-players" value="2" min="2" max="2" readonly>
+    <div class="info-text">最大参加人数: 5人（2人から開始できます）</div>
     <label>モード選択</label>
     <select id="game-mode">
       <option value="intro">自己紹介してからクイズ</option>
@@ -381,6 +380,11 @@
 
   function hostHandleClientData(data, conn) {
     if (data.type === 'JOIN') {
+      if (state.players.length >= 5 && !state.players.some(player => player.id === data.id)) {
+        conn.send({ type: 'ROOM_FULL' });
+        setTimeout(() => conn.close(), 100);
+        return;
+      }
       if (!state.players.some(player => player.id === data.id)) {
         state.players.push({ id: data.id, name: data.name });
       }
@@ -410,7 +414,7 @@
       // 順番をシャッフル
       state.introQueue = [...state.players].sort(() => Math.random() - 0.5);
       state.screen = 'intro';
-      state.introTime = 30;
+      state.introTime = 30; //自己紹介の時間設定
     } else {
       setupQuizPrep();
     }
@@ -512,7 +516,7 @@
         state.prepTime--;
         if (state.prepTime <= 0) {
           state.screen = 'quiz';
-          state.quizTime = 30;
+          state.quizTime = state.players.length * 5;
         }
         hostBroadcastState();
       }
@@ -536,6 +540,9 @@
       renderState();
     } else if (data.type === 'PLAY_SOUND') {
       playSound(data.sound);
+    } else if (data.type === 'ROOM_FULL') {
+      switchScreen('screen-join');
+      document.getElementById('join-error').innerText = 'この部屋は満員です（最大5人）。';
     }
   }
 
