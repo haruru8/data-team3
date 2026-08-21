@@ -43,7 +43,7 @@
   <!-- 部屋に入る -->
   <div id="screen-join" class="screen">
     <h1>部屋に入室</h1>
-    <input type="text" id="join-room-id" placeholder="あいことばを入力">
+    <input type="text" id="join-room-id" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="6桁のあいことばを入力">
     <div id="join-error" class="alert-text"></div>
     <button onclick="guestConnect()">入室する</button>
   </div>
@@ -148,4 +148,3 @@
 
 </body>
 </html>
-

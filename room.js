@@ -1,8 +1,13 @@
   // --- 通信初期化 ---
-  function initPeer(onOpen) {
-    peer = new Peer();
+  function initPeer(onOpen, requestedId = null, onIdUnavailable = null) {
+    peer = requestedId ? new Peer(requestedId) : new Peer();
     peer.on('open', (id) => { myId = id; onOpen(id); });
     peer.on('error', (error) => {
+      if (error.type === 'unavailable-id' && onIdUnavailable) {
+        peer.destroy();
+        onIdUnavailable();
+        return;
+      }
       const message = error.type === 'peer-unavailable'
         ? '部屋が見つかりません。合言葉を確認してください。'
         : '接続できませんでした。インターネット接続を確認してください。';
@@ -11,11 +16,12 @@
     });
   }
 
-  function uiStartHost() {
-    myName = document.getElementById('nickname').value || 'ホスト';
-    isHost = true;
-    state.screen = 'lobby';
-    switchScreen('screen-create');
+  function generateRoomCode() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+
+  function createHostRoom() {
+    const roomCode = generateRoomCode();
     initPeer((id) => {
       document.getElementById('host-id-display').innerText = id;
       state.players.push({ id: myId, name: myName });
@@ -24,7 +30,15 @@
         connections.push(conn);
         conn.on('data', (data) => hostHandleClientData(data, conn));
       });
-    });
+    }, roomCode, createHostRoom);
+  }
+
+  function uiStartHost() {
+    myName = document.getElementById('nickname').value || 'ホスト';
+    isHost = true;
+    state.screen = 'lobby';
+    switchScreen('screen-create');
+    createHostRoom();
   }
 
   function uiStartGuest() {
@@ -40,6 +54,10 @@
     errorBox.innerText = '';
     if (!hostId) {
       errorBox.innerText = '合言葉を入力してください。';
+      return;
+    }
+    if (!/^\d{6}$/.test(hostId)) {
+      errorBox.innerText = '6桁の数字を入力してください。';
       return;
     }
     hostConn = peer.connect(hostId);
@@ -122,5 +140,4 @@
       document.getElementById('join-error').innerText = 'この部屋は満員です（最大5人）。';
     }
   }
-
 
