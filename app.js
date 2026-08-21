@@ -94,9 +94,10 @@
     if (state.screen === 'quiz') {
       const amIMaster = state.players[state.quizMasterIndex].id === myId;
       const amIAnswerer = state.players[state.quizAnswererIndex].id === myId;
+      const currentAnswerer = state.players[state.quizAnswererIndex];
       
       document.getElementById('quiz-question-text').innerText = state.questionText;
-      document.getElementById('quiz-answerer-name').innerText = state.players[state.quizAnswererIndex].name;
+      document.getElementById('quiz-answerer-name').innerText = currentAnswerer.name;
       
       // 爆弾と時間表示
       const timeDisplay = document.getElementById('quiz-time-display');
@@ -107,9 +108,30 @@
         timeDisplay.classList.remove('timer-danger');
       }
       
-      const bomb = document.getElementById('bomb');
-      const travel = 160;
-      bomb.style.top = (travel * ((30 - state.quizTime) / 30)) + 'px';
+      // 出題者を除き、回答者の人数分だけレーンを表示する
+      const laneContainer = document.getElementById('quiz-lanes');
+      const lanePlayers = Array.from({ length: state.players.length - 1 }, (_, offset) =>
+        state.players[(state.quizMasterIndex + offset + 1) % state.players.length]
+      );
+      laneContainer.style.setProperty('--lane-count', lanePlayers.length);
+      const quizDuration = state.players.length * 5;
+      const bombProgress = Math.max(0, Math.min(1, (quizDuration - state.quizTime) / quizDuration));
+      laneContainer.innerHTML = lanePlayers.map((player) => {
+        const isAnswered = state.answeredPlayerIds.includes(player.id);
+        const isCurrent = player.id === currentAnswerer.id;
+        const statusClass = isAnswered ? 'answered' : isCurrent ? 'active' : 'waiting';
+        const statusText = isAnswered ? '正解' : isCurrent ? '回答中' : '待機';
+        const laneContent = isAnswered
+          ? '<div class="lane-check">✓</div>'
+          : isCurrent
+          ? `<div class="bomb-icon" style="top: calc((100% - 30px) * ${bombProgress})"></div>`
+          : '';
+        return `<div class="quiz-lane ${statusClass}">
+          <div class="lane-name">${escapeHtml(player.name)}</div>
+          <div class="bomb-track">${laneContent}</div>
+          <div class="lane-status">${statusText}</div>
+        </div>`;
+      }).join('');
 
       // ヒントアラート
       const alertBox = document.getElementById('quiz-alert');
