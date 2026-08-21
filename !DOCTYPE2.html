@@ -521,7 +521,7 @@ input[type=text]:focus, input[type=number]:focus{
   background:repeating-linear-gradient(90deg, rgba(255,212,0,.55) 0 10px, rgba(0,0,0,.55) 10px 20px);
 }
 
-/* ---- 導火線トラック：爆弾が左から右へ渡っていく ---- */
+/* ---- 導火線トラック：回答中のレーン内で爆弾が落下する ---- */
 .stage-track{
   position:relative;
   display:flex; align-items:flex-end; gap:8px;
@@ -833,6 +833,7 @@ function broadcastState(renderRequired = true){
 
 function applySharedState(nextState, renderRequired = true){
   const previous = sharedState();
+  const previousPhase = SCREEN_PHASE[previous.screen] || 'ice';
   const local = {
     nickname:state.nickname,
     isHost:state.isHost,
@@ -846,6 +847,8 @@ function applySharedState(nextState, renderRequired = true){
     updateSyncedTimer();
   } else {
     render(previous.screen === state.screen);
+    const nextPhase = SCREEN_PHASE[state.screen] || 'ice';
+    if(previousPhase === 'ice' && nextPhase === 'hot') showIgnite();
   }
 }
 
@@ -891,13 +894,14 @@ function createPeerRoom(){
   state.participants = [];
   connectionStatus = 'connecting';
   state.roomCode = genCode();
+  updateRoomCreateStatus();
   peer = new Peer(state.roomCode, {debug:2});
   peer.on('open', id=>{
     myPeerId = id;
     connectionStatus = 'connected';
     state.players = [{id, name:state.nickname}];
     state.participants = [state.nickname];
-    render();
+    updateRoomCreateStatus();
   });
   peer.on('connection', conn=>{
     guestConnections.push(conn);
@@ -907,7 +911,6 @@ function createPeerRoom(){
   peer.on('error', error=>{
     if(error.type === 'unavailable-id'){
       createPeerRoom();
-      render();
       return;
     }
     showConnectionError('部屋を作成できませんでした。インターネット接続を確認してください。');
@@ -958,7 +961,24 @@ function removeGuest(peerId){
   state.players = state.players.filter(player=>player.id !== peerId);
   state.participants = state.players.map(player=>player.name);
   broadcastState();
-  render();
+  refreshRoomDisplay();
+}
+
+function updateRoomCreateStatus(){
+  const code = document.getElementById('hostRoomCode');
+  const count = document.getElementById('hostParticipantCount');
+  const confirm = document.getElementById('confirm');
+  if(code) code.textContent = state.roomCode || '準備中…';
+  if(count) count.textContent = `👥 ${state.participants.length}人が入室中`;
+  if(confirm) confirm.disabled = state.participants.length < 2;
+}
+
+function refreshRoomDisplay(){
+  if(state.screen === 'roomCreate'){
+    updateRoomCreateStatus();
+  } else {
+    render(true);
+  }
 }
 
 function playerFor(peerId){
@@ -1007,7 +1027,7 @@ function handleGuestMessage(data, conn){
     state.players.push({id:conn.peer, name});
     state.participants = state.players.map(player=>player.name);
     broadcastState();
-    render();
+    refreshRoomDisplay();
     return;
   }
   if(data.type === 'ACTION' && isAllowed(data.action, conn.peer)){
@@ -1140,11 +1160,11 @@ function screenRoomCreate(){
       <p class="sub">このあいことばをメンバーに共有してください</p>
       <div class="card">
         <label class="field-label">あいことば</label>
-        <div class="code-display">${state.roomCode}</div>
+        <div class="code-display" id="hostRoomCode">${state.roomCode || '準備中…'}</div>
         <p class="demo-note">参加者は同じサイトを開き、このあいことばで入室してください</p>
-        <div class="btn btn-secondary" style="margin-top:14px; cursor:default;">👥 ${state.participants.length}人が入室中</div>
+        <div class="btn btn-secondary" id="hostParticipantCount" style="margin-top:14px; cursor:default;">👥 ${state.participants.length}人が入室中</div>
       </div>
-      <button class="btn btn-primary" id="confirm">部屋を確定する</button>
+      <button class="btn btn-primary" id="confirm" ${state.participants.length < 2 ? 'disabled' : ''}>部屋を確定する</button>
     </div>
   `);
   node.querySelector('#back').onclick = ()=>{ destroyPeer(); go('nickname'); };
@@ -1633,12 +1653,11 @@ function handleCorrectAnswer(){
   clearInterval(state.quizHandle);
   state.bombPosition++;
   state.hintUsed = false;
-  broadcastState();
   if(state.bombPosition >= state.answererOrder.length){
     state.cleared = true;
-    setTimeout(()=>go('quizRoundResult'), 620);
+    go('quizRoundResult');
   } else {
-    setTimeout(()=>go('quizActive'), 620);
+    go('quizActive');
   }
 }
 
