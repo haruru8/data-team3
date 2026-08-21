@@ -116,7 +116,8 @@
       laneContainer.style.setProperty('--lane-count', lanePlayers.length);
       const quizDuration = state.players.length * 5;
       const bombProgress = Math.max(0, Math.min(1, (quizDuration - state.quizTime) / quizDuration));
-      laneContainer.innerHTML = lanePlayers.map((player) => {
+      const laneColors = ['#29b6f6', '#40d95c', '#ffd740', '#ff8f00', '#ff5252'];
+      laneContainer.innerHTML = lanePlayers.map((player, index) => {
         const isAnswered = state.answeredPlayerIds.includes(player.id);
         const isCurrent = player.id === currentAnswerer.id;
         const statusClass = isAnswered ? 'answered' : isCurrent ? 'active' : 'waiting';
@@ -126,9 +127,9 @@
           : isCurrent
           ? `<div class="bomb-icon" style="top: calc((100% - 30px) * ${bombProgress})"></div>`
           : '';
-        return `<div class="quiz-lane ${statusClass}">
-          <div class="lane-name">${escapeHtml(player.name)}</div>
+        return `<div class="quiz-lane ${statusClass}" style="--lane-color: ${laneColors[index % laneColors.length]}">
           <div class="bomb-track">${laneContent}</div>
+          <div class="lane-name">${escapeHtml(player.name)}</div>
           <div class="lane-status">${statusText}</div>
         </div>`;
       }).join('');
