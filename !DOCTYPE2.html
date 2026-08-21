@@ -535,7 +535,8 @@ input[type=text]:focus, input[type=number]:focus{
   background:linear-gradient(180deg, #0a0b10, #1a1c22);
   border:2px solid #000;
   box-shadow:inset 0 0 8px rgba(0,0,0,.7), 2px 2px 0 rgba(0,0,0,.6);
-  transition:left .6s cubic-bezier(.34,1.56,.64,1);
+  /* 横位置は即座に確定し、再描画時に左端から滑り込ませない */
+  transition:none;
   z-index:5;
   overflow:hidden;
 }
@@ -552,7 +553,8 @@ input[type=text]:focus, input[type=number]:focus{
   position:absolute; left:50%; top:0;
   font-size:19px;
   transform:translateX(-50%);
-  transition:top .92s linear, left .6s cubic-bezier(.34,1.56,.64,1);
+  /* 前作と同様に、時間経過による縦方向の落下だけを動かす */
+  transition:top .92s linear;
   filter:drop-shadow(0 2px 4px rgba(255,59,59,.7));
   z-index:6;
 }
@@ -822,14 +824,14 @@ function sharedState(){
   return copy;
 }
 
-function broadcastState(){
+function broadcastState(renderRequired = true){
   if(!state.isHost) return;
-  const message = {type:'SYNC_STATE', state:sharedState()};
+  const message = {type:'SYNC_STATE', state:sharedState(), renderRequired};
   guestConnections = guestConnections.filter(conn=>conn.open);
   guestConnections.forEach(conn=>conn.send(message));
 }
 
-function applySharedState(nextState){
+function applySharedState(nextState, renderRequired = true){
   const previous = sharedState();
   const local = {
     nickname:state.nickname,
@@ -840,15 +842,7 @@ function applySharedState(nextState){
     quizHandle:state.quizHandle
   };
   Object.assign(state, nextState, local);
-  const changedKeys = Object.keys(nextState).filter(key=>
-    JSON.stringify(previous[key]) !== JSON.stringify(nextState[key])
-  );
-  const timerKey = state.screen === 'introRunning' ? 'introTimer'
-    : state.screen === 'quizPrep' ? 'prepTimer'
-    : state.screen === 'quizActive' ? 'quizTimer'
-    : null;
-  if(previous.screen === state.screen && timerKey &&
-     changedKeys.length === 1 && changedKeys[0] === timerKey){
+  if(!renderRequired && previous.screen === state.screen){
     updateSyncedTimer();
   } else {
     render(previous.screen === state.screen);
@@ -948,7 +942,7 @@ function connectToRoom(code){
 function handleHostMessage(data){
   if(data.type === 'SYNC_STATE'){
     connectionStatus = 'connected';
-    applySharedState(data.state);
+    applySharedState(data.state, data.renderRequired !== false);
   }
   if(data.type === 'JOIN_ERROR'){
     connectionStatus = 'error';
@@ -1332,7 +1326,7 @@ function screenIntroRunning(){
       clearInterval(state.introTimerHandle);
       advanceIntro();
     } else {
-      broadcastState();
+      broadcastState(false);
     }
   }, 1000);
 
@@ -1438,7 +1432,7 @@ function screenQuizPrep(){
       state.quizTimer = state.roundTimeTotal;
       go('quizActive');
     } else {
-      broadcastState();
+      broadcastState(false);
     }
   },1000);
 
@@ -1484,15 +1478,21 @@ function positionBomb(){
 
 /* 共通タイマーが減るほど、レールの中を爆弾がはっきり分かる速さで滑り落ちる（本家演出） */
 const BOMB_RAIL_TRAVEL = 70; // レール内で爆弾が動ける距離(px)。レール高さ(96px)よりアイコン分小さくして見切れを防ぐ
-function updateBombDrop(){
+function updateBombDrop(animate = true){
   const bomb = document.getElementById('roamingBomb');
   if(!bomb) return;
   const total = state.roundTimeTotal || 30;
   const frac = Math.max(0, Math.min(1, state.quizTimer / total)); // 1=開始, 0=時間切れ
   // 序盤から目に見えて落ち、終盤は下で激しく震える：sqrtカーブで最初の落下を強調
   const y = Math.sqrt(1 - frac);
+  if(!animate) bomb.style.transition = 'none';
   bomb.style.top = (y * BOMB_RAIL_TRAVEL) + 'px';
   bomb.classList.toggle('critical', state.quizTimer <= 5);
+  if(!animate){
+    requestAnimationFrame(()=>{
+      bomb.style.transition = 'top .92s linear';
+    });
+  }
 }
 
 function screenQuizActive(){
@@ -1527,7 +1527,7 @@ function screenQuizActive(){
     </div>
   `);
 
-  setTimeout(()=>{ positionBomb(); updateBombDrop(); }, 0);
+  setTimeout(()=>{ positionBomb(); updateBombDrop(false); }, 0);
 
   function renderRoleView(){
     const wrap = node.querySelector('#roleView');
@@ -1619,7 +1619,7 @@ function screenQuizActive(){
       const podiums = node.querySelectorAll('.podium');
       if(podiums[state.bombPosition]) podiums[state.bombPosition].classList.add('exploded');
       state.cleared = false;
-      broadcastState();
+      broadcastState(false);
       showExplosion(()=> go('quizRoundResult'));
     } else {
       broadcastState();
