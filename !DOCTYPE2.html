@@ -727,6 +727,7 @@ let peer = null;
 let hostConnection = null;
 let guestConnections = [];
 let myPeerId = '';
+let connectionStatus = 'idle';
 
 const QUESTIONS = [
   '好きな映画のジャンルは？',
@@ -789,11 +790,13 @@ function updateChrome(){
   if(fill) fill.style.width = (SCREEN_PROGRESS[state.screen] || 0) + '%';
 }
 
-function render(){
+function render(skipAnimation = false){
   const app = document.getElementById('app');
   app.innerHTML = '';
   const visibleScreen = !state.isHost && state.screen === 'roomCreate' ? 'waitingRoom' : state.screen;
-  app.appendChild(SCREENS[visibleScreen]());
+  const screenNode = SCREENS[visibleScreen]();
+  if(skipAnimation) screenNode.style.animation = 'none';
+  app.appendChild(screenNode);
   updateChrome();
 }
 function go(screen){
@@ -827,6 +830,7 @@ function broadcastState(){
 }
 
 function applySharedState(nextState){
+  const previous = sharedState();
   const local = {
     nickname:state.nickname,
     isHost:state.isHost,
@@ -836,7 +840,42 @@ function applySharedState(nextState){
     quizHandle:state.quizHandle
   };
   Object.assign(state, nextState, local);
-  render();
+  const changedKeys = Object.keys(nextState).filter(key=>
+    JSON.stringify(previous[key]) !== JSON.stringify(nextState[key])
+  );
+  const timerKey = state.screen === 'introRunning' ? 'introTimer'
+    : state.screen === 'quizPrep' ? 'prepTimer'
+    : state.screen === 'quizActive' ? 'quizTimer'
+    : null;
+  if(previous.screen === state.screen && timerKey &&
+     changedKeys.length === 1 && changedKeys[0] === timerKey){
+    updateSyncedTimer();
+  } else {
+    render(previous.screen === state.screen);
+  }
+}
+
+function updateSyncedTimer(){
+  if(state.screen === 'introRunning'){
+    const timer = document.getElementById('timerNum');
+    if(timer){
+      timer.textContent = state.introTimer;
+      timer.style.color = state.introTimer <= 5 ? 'var(--bad)' : 'var(--fuse-1)';
+    }
+    return;
+  }
+  if(state.screen === 'quizPrep'){
+    const timer = document.getElementById('prepSec');
+    if(timer) timer.textContent = state.prepTimer;
+    return;
+  }
+  if(state.screen === 'quizActive'){
+    const timer = document.getElementById('timerNum');
+    const clock = document.getElementById('clockBox');
+    if(timer) timer.textContent = state.quizTimer;
+    if(clock) clock.classList.toggle('danger', state.quizTimer <= 5);
+    updateBombDrop();
+  }
 }
 
 function showConnectionError(message){
@@ -849,14 +888,19 @@ function destroyPeer(){
   hostConnection = null;
   guestConnections = [];
   myPeerId = '';
+  connectionStatus = 'idle';
 }
 
 function createPeerRoom(){
   destroyPeer();
+  state.players = [];
+  state.participants = [];
+  connectionStatus = 'connecting';
   state.roomCode = genCode();
-  peer = new Peer(state.roomCode);
+  peer = new Peer(state.roomCode, {debug:2});
   peer.on('open', id=>{
     myPeerId = id;
+    connectionStatus = 'connected';
     state.players = [{id, name:state.nickname}];
     state.participants = [state.nickname];
     render();
@@ -878,11 +922,15 @@ function createPeerRoom(){
 
 function connectToRoom(code){
   destroyPeer();
-  peer = new Peer();
+  state.players = [];
+  state.participants = [];
+  connectionStatus = 'connecting';
+  peer = new Peer(undefined, {debug:2});
   peer.on('open', id=>{
     myPeerId = id;
     hostConnection = peer.connect(code);
     hostConnection.on('open', ()=>{
+      connectionStatus = 'connected';
       hostConnection.send({type:'JOIN', id, name:state.nickname});
     });
     hostConnection.on('data', handleHostMessage);
@@ -898,8 +946,17 @@ function connectToRoom(code){
 }
 
 function handleHostMessage(data){
-  if(data.type === 'SYNC_STATE') applySharedState(data.state);
-  if(data.type === 'JOIN_ERROR') showConnectionError(data.message);
+  if(data.type === 'SYNC_STATE'){
+    connectionStatus = 'connected';
+    applySharedState(data.state);
+  }
+  if(data.type === 'JOIN_ERROR'){
+    connectionStatus = 'error';
+    showConnectionError(data.message);
+    destroyPeer();
+    state.screen = 'roomJoin';
+    render();
+  }
 }
 
 function removeGuest(peerId){
@@ -1069,6 +1126,8 @@ function screenNickname(){
     const v = cleanNickname(node.querySelector('#nick').value);
     if(!v){ alert('ニックネームを入力してください'); return; }
     state.nickname = v; state.isHost = false;
+    state.players = [];
+    state.participants = [];
     go('roomJoin');
   };
   return node;
@@ -1133,14 +1192,15 @@ function screenRoomJoin(){
 
 /* ---------- 4. 待機部屋（人数確認） ---------- */
 function screenWaitingRoom(){
+  const waitingForConnection = !state.isHost && state.participants.length === 0;
   const node = el(`
     <div class="screen">
       <div class="eyebrow">ROOM · ${state.roomCode}</div>
       <h1 class="page-title">入室メンバー</h1>
-      <p class="sub">${state.participants.length}人が部屋にいます</p>
+      <p class="sub">${waitingForConnection ? '部屋へ接続しています…' : `${state.participants.length}人が部屋にいます`}</p>
       <div class="card">
         <ul class="plist">
-          ${state.participants.map((p,i)=>`
+          ${waitingForConnection ? '<li style="color:var(--text-dim);">接続中…</li>' : state.participants.map((p,i)=>`
             <li><div class="avatar">${p[0]}</div>${p}${(state.isHost && p===state.nickname) ? '<span class="host-tag">HOST</span>' : ''}</li>
           `).join('')}
         </ul>
