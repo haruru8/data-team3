@@ -831,6 +831,13 @@ function broadcastState(renderRequired = true){
   guestConnections.forEach(conn=>conn.send(message));
 }
 
+function broadcastEffect(effect){
+  if(!state.isHost) return;
+  guestConnections.filter(conn=>conn.open).forEach(conn=>
+    conn.send({type:'PLAY_EFFECT', effect})
+  );
+}
+
 function applySharedState(nextState, renderRequired = true){
   const previous = sharedState();
   const previousPhase = SCREEN_PHASE[previous.screen] || 'ice';
@@ -901,7 +908,8 @@ function createPeerRoom(){
     connectionStatus = 'connected';
     state.players = [{id, name:state.nickname}];
     state.participants = [state.nickname];
-    updateRoomCreateStatus();
+    if(state.screen === 'nickname') go('roomCreate');
+    else updateRoomCreateStatus();
   });
   peer.on('connection', conn=>{
     guestConnections.push(conn);
@@ -953,6 +961,10 @@ function handleHostMessage(data){
     destroyPeer();
     state.screen = 'roomJoin';
     render();
+  }
+  if(data.type === 'PLAY_EFFECT'){
+    if(data.effect === 'iceBreak') showIceBreak(()=>{});
+    if(data.effect === 'explosion') showExplosion(()=>{});
   }
 }
 
@@ -1133,8 +1145,10 @@ function screenNickname(){
     const v = cleanNickname(node.querySelector('#nick').value);
     if(!v){ alert('ニックネームを入力してください'); return; }
     state.nickname = v; state.isHost = true;
+    node.querySelector('#mkRoom').style.pointerEvents = 'none';
+    node.querySelector('#mkRoom').style.opacity = '.55';
+    node.querySelector('#mkRoom .lbl').textContent = '部屋を準備中…';
     createPeerRoom();
-    go('roomCreate');
   };
   node.querySelector('#joinRoom').onclick = ()=>{
     const v = cleanNickname(node.querySelector('#nick').value);
@@ -1639,10 +1653,11 @@ function screenQuizActive(){
       const podiums = node.querySelectorAll('.podium');
       if(podiums[state.bombPosition]) podiums[state.bombPosition].classList.add('exploded');
       state.cleared = false;
-      broadcastState(false);
+      broadcastState();
+      broadcastEffect('explosion');
       showExplosion(()=> go('quizRoundResult'));
     } else {
-      broadcastState();
+      broadcastState(false);
     }
   },1000);
 
@@ -1655,7 +1670,9 @@ function handleCorrectAnswer(){
   state.hintUsed = false;
   if(state.bombPosition >= state.answererOrder.length){
     state.cleared = true;
-    go('quizRoundResult');
+    broadcastState();
+    broadcastEffect('iceBreak');
+    showIceBreak(()=>go('quizRoundResult'));
   } else {
     go('quizActive');
   }
