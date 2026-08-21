@@ -6,6 +6,7 @@
 <title>導火線クイズ | ファイブボンバー風パーティーゲーム</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
 :root{
   --bg:#0a0a0d;
@@ -686,7 +687,7 @@ footer.note{
 
 <script>
 /* =========================================================
-   簡易プロトタイプ用ステート管理（実際の通信は行いません）
+   ステート管理（ホストが更新し、PeerJSで参加者へ同期）
 ========================================================= */
 const state = {
   screen: 'title',
@@ -695,6 +696,7 @@ const state = {
   roomCode: '',
   joinCode: '',
   participants: [],
+  players: [],
   mode: null, // 'intro_quiz' | 'quiz_only'
   introIndex: 0,
   introTimer: 30,
@@ -721,7 +723,11 @@ const state = {
   rating: ''
 };
 
-const MOCK_NAMES = ['ゆい','たくみ','りん','しょう','はな'];
+let peer = null;
+let hostConnection = null;
+let guestConnections = [];
+let myPeerId = '';
+
 const QUESTIONS = [
   '好きな映画のジャンルは？',
   '最近ハマっている食べ物は？',
@@ -786,7 +792,8 @@ function updateChrome(){
 function render(){
   const app = document.getElementById('app');
   app.innerHTML = '';
-  app.appendChild(SCREENS[state.screen]());
+  const visibleScreen = !state.isHost && state.screen === 'roomCreate' ? 'waitingRoom' : state.screen;
+  app.appendChild(SCREENS[visibleScreen]());
   updateChrome();
 }
 function go(screen){
@@ -799,6 +806,201 @@ function go(screen){
   } else {
     render();
   }
+  if(state.isHost) broadcastState();
+}
+
+function sharedState(){
+  const copy = {};
+  Object.keys(state).forEach(key=>{
+    if(!['nickname','isHost','viewAs','introTimerHandle','prepHandle','quizHandle'].includes(key)){
+      copy[key] = state[key];
+    }
+  });
+  return copy;
+}
+
+function broadcastState(){
+  if(!state.isHost) return;
+  const message = {type:'SYNC_STATE', state:sharedState()};
+  guestConnections = guestConnections.filter(conn=>conn.open);
+  guestConnections.forEach(conn=>conn.send(message));
+}
+
+function applySharedState(nextState){
+  const local = {
+    nickname:state.nickname,
+    isHost:state.isHost,
+    viewAs:state.viewAs,
+    introTimerHandle:state.introTimerHandle,
+    prepHandle:state.prepHandle,
+    quizHandle:state.quizHandle
+  };
+  Object.assign(state, nextState, local);
+  render();
+}
+
+function showConnectionError(message){
+  alert(message);
+}
+
+function destroyPeer(){
+  if(peer) peer.destroy();
+  peer = null;
+  hostConnection = null;
+  guestConnections = [];
+  myPeerId = '';
+}
+
+function createPeerRoom(){
+  destroyPeer();
+  state.roomCode = genCode();
+  peer = new Peer(state.roomCode);
+  peer.on('open', id=>{
+    myPeerId = id;
+    state.players = [{id, name:state.nickname}];
+    state.participants = [state.nickname];
+    render();
+  });
+  peer.on('connection', conn=>{
+    guestConnections.push(conn);
+    conn.on('data', data=>handleGuestMessage(data, conn));
+    conn.on('close', ()=>removeGuest(conn.peer));
+  });
+  peer.on('error', error=>{
+    if(error.type === 'unavailable-id'){
+      createPeerRoom();
+      render();
+      return;
+    }
+    showConnectionError('部屋を作成できませんでした。インターネット接続を確認してください。');
+  });
+}
+
+function connectToRoom(code){
+  destroyPeer();
+  peer = new Peer();
+  peer.on('open', id=>{
+    myPeerId = id;
+    hostConnection = peer.connect(code);
+    hostConnection.on('open', ()=>{
+      hostConnection.send({type:'JOIN', id, name:state.nickname});
+    });
+    hostConnection.on('data', handleHostMessage);
+    hostConnection.on('close', ()=>showConnectionError('ホストとの接続が切れました。'));
+    hostConnection.on('error', ()=>showConnectionError('部屋に接続できませんでした。'));
+  });
+  peer.on('error', error=>{
+    const message = error.type === 'peer-unavailable'
+      ? '部屋が見つかりません。あいことばを確認してください。'
+      : '接続できませんでした。インターネット接続を確認してください。';
+    showConnectionError(message);
+  });
+}
+
+function handleHostMessage(data){
+  if(data.type === 'SYNC_STATE') applySharedState(data.state);
+  if(data.type === 'JOIN_ERROR') showConnectionError(data.message);
+}
+
+function removeGuest(peerId){
+  if(!state.isHost || !['roomCreate','waitingRoom'].includes(state.screen)) return;
+  state.players = state.players.filter(player=>player.id !== peerId);
+  state.participants = state.players.map(player=>player.name);
+  broadcastState();
+  render();
+}
+
+function playerFor(peerId){
+  return state.players.find(player=>player.id === peerId);
+}
+
+function isAllowed(action, senderId){
+  const player = playerFor(senderId);
+  if(!player) return false;
+  if(action === 'HINT') return state.screen === 'quizActive' && player.name === state.answererOrder[state.bombPosition];
+  if(['CHANGE_QUESTION','DECIDE_QUESTION'].includes(action)){
+    return state.screen === 'quizPrep' && player.name === state.questioner;
+  }
+  if(['JUDGE_CORRECT','JUDGE_WRONG'].includes(action)){
+    return state.screen === 'quizActive' && player.name === state.questioner;
+  }
+  if(['PLAY_AGAIN','END_GAME'].includes(action)){
+    return state.screen === 'quizRoundResult' && player.name === state.questioner;
+  }
+  return false;
+}
+
+function handleGuestMessage(data, conn){
+  if(data.type === 'JOIN'){
+    const name = cleanNickname(String(data.name || ''));
+    if(!name){
+      conn.send({type:'JOIN_ERROR', message:'ニックネームを入力してください。'});
+      return;
+    }
+    if(state.players.some(player=>player.id === conn.peer)){
+      conn.send({type:'SYNC_STATE', state:sharedState()});
+      return;
+    }
+    if(state.players.some(player=>player.name === name)){
+      conn.send({type:'JOIN_ERROR', message:'同じニックネームが使われています。別の名前で入り直してください。'});
+      return;
+    }
+    if(state.players.length >= 8){
+      conn.send({type:'JOIN_ERROR', message:'この部屋は満員です。'});
+      return;
+    }
+    if(!['roomCreate','waitingRoom'].includes(state.screen)){
+      conn.send({type:'JOIN_ERROR', message:'この部屋はすでにゲームを開始しています。'});
+      return;
+    }
+    state.players.push({id:conn.peer, name});
+    state.participants = state.players.map(player=>player.name);
+    broadcastState();
+    render();
+    return;
+  }
+  if(data.type === 'ACTION' && isAllowed(data.action, conn.peer)){
+    performAction(data.action);
+  }
+}
+
+function requestAction(action){
+  if(state.isHost){
+    performAction(action);
+  } else if(hostConnection && hostConnection.open){
+    hostConnection.send({type:'ACTION', action});
+  }
+}
+
+function performAction(action){
+  if(!state.isHost) return;
+  if(action === 'CHANGE_QUESTION'){
+    if(state.changeCount >= 2) return;
+    state.changeCount++;
+    const options = QUESTIONS.filter(question=>question !== state.question);
+    state.question = options[Math.floor(Math.random()*options.length)];
+    broadcastState();
+    render();
+  } else if(action === 'DECIDE_QUESTION'){
+    clearInterval(state.prepHandle);
+    state.quizTimer = state.roundTimeTotal;
+    go('quizActive');
+  } else if(action === 'HINT'){
+    state.hintUsed = true;
+    broadcastState();
+    render();
+  } else if(action === 'JUDGE_CORRECT'){
+    handleCorrectAnswer();
+  } else if(action === 'JUDGE_WRONG'){
+    broadcastState();
+  } else if(action === 'PLAY_AGAIN'){
+    state.history.push({questioner:state.questioner, question:state.question, cleared:state.cleared});
+    state.quizIndex++;
+    startQuizRound();
+  } else if(action === 'END_GAME'){
+    state.history.push({questioner:state.questioner, question:state.question, cleared:state.cleared});
+    go('finalResult');
+  }
 }
 function showIgnite(){
   const overlay = document.createElement('div');
@@ -806,6 +1008,10 @@ function showIgnite(){
   overlay.innerHTML = `<div class="ignite-text">🔥 点火！</div>`;
   document.body.appendChild(overlay);
   setTimeout(()=>overlay.remove(), 500);
+}
+
+function cleanNickname(value){
+  return value.replace(/[<>&"'`]/g, '').trim().slice(0,10);
 }
 
 /* ---------- 1. タイトル ---------- */
@@ -853,14 +1059,14 @@ function screenNickname(){
     </div>
   `);
   node.querySelector('#mkRoom').onclick = ()=>{
-    const v = node.querySelector('#nick').value.trim();
+    const v = cleanNickname(node.querySelector('#nick').value);
     if(!v){ alert('ニックネームを入力してください'); return; }
     state.nickname = v; state.isHost = true;
-    state.roomCode = genCode();
+    createPeerRoom();
     go('roomCreate');
   };
   node.querySelector('#joinRoom').onclick = ()=>{
-    const v = node.querySelector('#nick').value.trim();
+    const v = cleanNickname(node.querySelector('#nick').value);
     if(!v){ alert('ニックネームを入力してください'); return; }
     state.nickname = v; state.isHost = false;
     go('roomJoin');
@@ -868,8 +1074,7 @@ function screenNickname(){
   return node;
 }
 function genCode(){
-  const w = ['もも','たいよう','うみ','ほし','くも','にじ'];
-  return w[Math.floor(Math.random()*w.length)] + Math.floor(100+Math.random()*900);
+  return String(Math.floor(100000 + Math.random()*900000));
 }
 
 /* ---------- 3a. あいことば作成（ホスト） ---------- */
@@ -883,22 +1088,15 @@ function screenRoomCreate(){
       <div class="card">
         <label class="field-label">あいことば</label>
         <div class="code-display">${state.roomCode}</div>
-        <p class="demo-note">※デモ：入室ボタンを押すと参加者が仮で集まった想定になります</p>
-        <button class="btn btn-secondary" id="simulateJoin" style="margin-top:14px;">👥 参加者が集まった（デモ）</button>
+        <p class="demo-note">参加者は同じサイトを開き、このあいことばで入室してください</p>
+        <div class="btn btn-secondary" style="margin-top:14px; cursor:default;">👥 ${state.participants.length}人が入室中</div>
       </div>
       <button class="btn btn-primary" id="confirm">部屋を確定する</button>
     </div>
   `);
-  node.querySelector('#back').onclick = ()=>go('nickname');
-  node.querySelector('#simulateJoin').onclick = ()=>{
-    state.participants = [state.nickname, ...MOCK_NAMES.slice(0, 3+Math.floor(Math.random()*2))];
-    node.querySelector('#simulateJoin').textContent = `✅ ${state.participants.length}人が入室中`;
-    node.querySelector('#simulateJoin').disabled = true;
-  };
+  node.querySelector('#back').onclick = ()=>{ destroyPeer(); go('nickname'); };
   node.querySelector('#confirm').onclick = ()=>{
-    if(state.participants.length === 0){
-      state.participants = [state.nickname];
-    }
+    if(state.participants.length < 2){ alert('参加者が入室するまで待ってください'); return; }
     go('waitingRoom');
   };
   return node;
@@ -914,18 +1112,20 @@ function screenRoomJoin(){
       <p class="sub">主催者から共有されたあいことばを入力してください</p>
       <div class="card">
         <label class="field-label">あいことば</label>
-        <input type="text" id="code" placeholder="例：もも123">
+        <input type="text" id="code" inputmode="numeric" maxlength="6" placeholder="6桁のあいことば">
       </div>
       <button class="btn btn-primary" id="enter">入室する</button>
-      <p class="demo-note">※デモ：どんな文字列でも入室できます</p>
+      <p class="demo-note">主催者の画面に表示された6桁のあいことばを入力してください</p>
     </div>
   `);
-  node.querySelector('#back').onclick = ()=>go('nickname');
+  node.querySelector('#back').onclick = ()=>{ destroyPeer(); go('nickname'); };
   node.querySelector('#enter').onclick = ()=>{
     const v = node.querySelector('#code').value.trim();
-    if(!v){ alert('あいことばを入力してください'); return; }
+    if(!/^\d{6}$/.test(v)){ alert('6桁のあいことばを入力してください'); return; }
     state.roomCode = v;
-    state.participants = [...MOCK_NAMES.slice(0,4), state.nickname];
+    node.querySelector('#enter').disabled = true;
+    node.querySelector('#enter').textContent = '接続中…';
+    connectToRoom(v);
     go('waitingRoom');
   };
   return node;
@@ -945,9 +1145,9 @@ function screenWaitingRoom(){
           `).join('')}
         </ul>
       </div>
-      ${state.isHost ? `<button class="btn btn-primary" id="next">この人数ではじめる →</button>`
+      ${state.isHost ? `<button class="btn btn-primary" id="next" ${state.participants.length < 2 ? 'disabled' : ''}>この人数ではじめる →</button>`
         : `<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>`}
-      ${state.isHost ? `<p class="demo-note">主催者だけが次に進めます（デモでは常に主催者視点）</p>` : ''}
+      ${state.isHost ? `<p class="demo-note">主催者だけが次に進めます</p>` : ''}
     </div>
   `);
   const nextBtn = node.querySelector('#next');
@@ -989,11 +1189,13 @@ function screenModeSelect(){
     </div>
   `);
   node.querySelector('#withIntro').onclick = ()=>{
+    if(!state.isHost) return;
     state.mode = 'intro_quiz';
     state.introIndex = 0;
     go('introPrep');
   };
   node.querySelector('#quizOnly').onclick = ()=>{
+    if(!state.isHost) return;
     state.mode = 'quiz_only';
     go('quizStartGate');
   };
@@ -1008,13 +1210,15 @@ function screenIntroPrep(){
       <h1 class="page-title">テーブル位置を決めました</h1>
       <p class="sub">この順番で、1人30秒ずつ自己紹介していきます</p>
       <div class="podium-stage">${renderPodiums(state.participants, -1)}</div>
-      <button class="btn btn-primary" id="startIntro">自己紹介をはじめる</button>
+      ${state.isHost ? '<button class="btn btn-primary" id="startIntro">自己紹介をはじめる</button>' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>'}
     </div>
   `);
-  node.querySelector('#startIntro').onclick = ()=>{
-    state.introIndex = 0;
-    go('introRunning');
-  };
+  const startButton = node.querySelector('#startIntro');
+  if(startButton) startButton.onclick = ()=>{
+      state.introIndex = 0;
+      state.introTimer = 30;
+      go('introRunning');
+    };
   return node;
 }
 
@@ -1049,15 +1253,15 @@ function screenIntroRunning(){
         <div style="font-size:11px; color:var(--text-dim); font-family:var(--font-mono);">SEC LEFT</div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-secondary" id="skip">次の人へ →</button>
+        ${state.isHost ? '<button class="btn btn-secondary" id="skip">次の人へ →</button>' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者が進行しています…</div>'}
       </div>
     </div>
   `);
-  node.querySelector('#skip').onclick = ()=>{ clearInterval(state.introTimerHandle); advanceIntro(); };
+  const skipButton = node.querySelector('#skip');
+  if(skipButton) skipButton.onclick = ()=>{ clearInterval(state.introTimerHandle); advanceIntro(); };
 
   clearInterval(state.introTimerHandle);
-  state.introTimer = 30;
-  state.introTimerHandle = setInterval(()=>{
+  if(state.isHost) state.introTimerHandle = setInterval(()=>{
     state.introTimer--;
     const numEl = document.getElementById('timerNum');
     if(numEl){
@@ -1067,6 +1271,8 @@ function screenIntroRunning(){
     if(state.introTimer <= 0){
       clearInterval(state.introTimerHandle);
       advanceIntro();
+    } else {
+      broadcastState();
     }
   }, 1000);
 
@@ -1077,6 +1283,7 @@ function advanceIntro(){
   if(state.introIndex >= state.participants.length){
     go('quizStartGate');
   } else {
+    state.introTimer = 30;
     go('introRunning');
   }
 }
@@ -1097,10 +1304,11 @@ function screenQuizStartGate(){
           回答者：<b style="color:var(--gold); font-family:var(--font-mono);">${others.join(' → ')}</b>
         </div>
       </div>
-      <button class="btn btn-primary" id="start">スタート</button>
+      ${state.isHost ? '<button class="btn btn-primary" id="start">スタート</button>' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>'}
     </div>
   `);
-  node.querySelector('#start').onclick = ()=>{
+  const startButton = node.querySelector('#start');
+  if(startButton) startButton.onclick = ()=>{
     state.bombPosition = 0;
     state.quizIndex = 0;
     state.history = [];
@@ -1119,7 +1327,8 @@ function startQuizRound(){
   state.prepTimer = 10;
   state.hintUsed = false;
   state.hintText = '';
-  state.viewAs = 'questioner';
+  state.cleared = null;
+  state.viewAs = state.nickname === state.questioner ? 'questioner' : 'answerer';
   // 1問を通して使う共通タイマー（人数に応じて少し伸ばす）
   state.roundTimeTotal = 15 + state.answererOrder.length * 10;
   go('quizPrep');
@@ -1127,6 +1336,7 @@ function startQuizRound(){
 
 /* ---------- 9. クイズ準備（出題者が問題選択） ---------- */
 function screenQuizPrep(){
+  const amQuestioner = state.nickname === state.questioner;
   const node = el(`
     <div class="screen">
       <div class="eyebrow alarm"><span class="siren-dot"></span>QUIZ PREP · <span id="prepSec">${state.prepTimer}</span>s以内に決定</div>
@@ -1137,10 +1347,11 @@ function screenQuizPrep(){
         <div class="qn">QUESTION</div>
         <div class="qtext" id="qtext">${state.question}</div>
       </div>
-      <div class="btn-row">
+      <div class="btn-row" style="display:${amQuestioner ? 'flex' : 'none'}">
         <button class="btn btn-secondary" id="change">🔄 問題を変更（残り${2-state.changeCount}回）</button>
       </div>
-      <button class="btn btn-primary" id="decide" style="margin-top:10px;">この問題で決定</button>
+      <button class="btn btn-primary" id="decide" style="margin-top:10px; display:${amQuestioner ? 'flex' : 'none'};">この問題で決定</button>
+      ${amQuestioner ? '' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px; margin-top:10px;">出題者が問題を選んでいます…</div>'}
       <p class="demo-note">10秒経つと自動でこの問題に決定します。決定後は${state.roundTimeTotal}秒の共通タイマーがスタートします。</p>
     </div>
   `);
@@ -1151,22 +1362,14 @@ function screenQuizPrep(){
       alert('もう変更できません');
       return;
     }
-    state.changeCount++;
-    const options = QUESTIONS.filter(q=>q!==state.question);
-    state.question = options[Math.floor(Math.random()*options.length)];
-    node.querySelector('#qtext').textContent = state.question;
-    changeBtn.textContent = `🔄 問題を変更（残り${2-state.changeCount}回）`;
-    if(state.changeCount>=2) changeBtn.disabled = true;
+    requestAction('CHANGE_QUESTION');
   };
   node.querySelector('#decide').onclick = ()=>{
-    clearInterval(state.prepHandle);
-    state.quizTimer = state.roundTimeTotal;
-    go('quizActive');
+    requestAction('DECIDE_QUESTION');
   };
 
   clearInterval(state.prepHandle);
-  state.prepTimer = 10;
-  state.prepHandle = setInterval(()=>{
+  if(state.isHost) state.prepHandle = setInterval(()=>{
     state.prepTimer--;
     const sec = node.querySelector('#prepSec');
     if(sec) sec.textContent = state.prepTimer;
@@ -1174,6 +1377,8 @@ function screenQuizPrep(){
       clearInterval(state.prepHandle);
       state.quizTimer = state.roundTimeTotal;
       go('quizActive');
+    } else {
+      broadcastState();
     }
   },1000);
 
@@ -1232,6 +1437,9 @@ function updateBombDrop(){
 
 function screenQuizActive(){
   const answerer = state.answererOrder[state.bombPosition];
+  const amQuestioner = state.nickname === state.questioner;
+  const amAnswerer = state.nickname === answerer;
+  state.viewAs = amQuestioner ? 'questioner' : amAnswerer ? 'answerer' : 'spectator';
   const danger = state.quizTimer <= 5;
   const node = el(`
     <div class="screen">
@@ -1255,12 +1463,6 @@ function screenQuizActive(){
         <span class="chip">🎯 ${answerer}が回答中</span>
       </div>
 
-      <div class="btn-row" style="margin-bottom:10px;">
-        <button class="btn btn-secondary" id="viewQ" style="opacity:${state.viewAs==='questioner'?1:.55}">出題者の画面</button>
-        <button class="btn btn-secondary" id="viewA" style="opacity:${state.viewAs==='answerer'?1:.55}">回答者の画面</button>
-      </div>
-      <p class="demo-note" style="margin-bottom:14px;">※デモ：1台の端末で両者の操作画面を確認できます／タイマーは1問を通してひとつだけです</p>
-
       <div id="roleView"></div>
     </div>
   `);
@@ -1282,7 +1484,7 @@ function screenQuizActive(){
       `;
       wrap.querySelector('#ok').onclick = onCorrect;
       wrap.querySelector('#ng').onclick = onWrong;
-    } else {
+    } else if(state.viewAs === 'answerer') {
       wrap.innerHTML = `
         <div class="card" style="text-align:center;">
           <p class="sub" style="margin-bottom:4px;">${answerer}さんの番です</p>
@@ -1292,32 +1494,22 @@ function screenQuizActive(){
         </div>
       `;
       const hb = wrap.querySelector('#hintBtn');
-      if(hb) hb.onclick = ()=>{ state.hintUsed = true; renderRoleView(); };
+      if(hb) hb.onclick = ()=>requestAction('HINT');
+    } else {
+      wrap.innerHTML = `
+        <div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">
+          ${answerer}さんが回答中です…
+        </div>
+      `;
     }
   }
   renderRoleView();
 
-  node.querySelector('#viewQ').onclick = ()=>{ state.viewAs='questioner'; go('quizActive'); };
-  node.querySelector('#viewA').onclick = ()=>{ state.viewAs='answerer'; go('quizActive'); };
-
   function onCorrect(){
-    // タイマーは止めない（1問共通タイマーのため）。ただし演出中は入力を止める
-    clearInterval(state.quizHandle);
-    state.bombPosition++;
-    state.hintUsed = false;
-    positionBomb(); // 爆弾が隣（または氷）へスライド
-    const wrap = node.querySelector('#roleView');
-    if(wrap) wrap.innerHTML = `<div class="card" style="text-align:center; color:var(--ok); font-family:var(--font-mono); font-size:13px;">〇 正解！爆弾が移動中…</div>`;
-
-    setTimeout(()=>{
-      if(state.bombPosition >= state.answererOrder.length){
-        triggerIceBreak();
-      } else {
-        go('quizActive'); // 同じ問題のまま、次の人の番へ（タイマーは継続）
-      }
-    }, 620);
+    requestAction('JUDGE_CORRECT');
   }
   function onWrong(){
+    requestAction('JUDGE_WRONG');
     const wrap = node.querySelector('#roleView');
     const flash = document.createElement('div');
     flash.textContent = '❌ 不正解！同じ人が続けて回答します';
@@ -1353,7 +1545,7 @@ function screenQuizActive(){
   // 1問を通してひとつだけのタイマー：新しい問題のときだけ初期化し、
   // 同じ問題中の再描画（正解して次の人へ／画面切替）では値を引き継ぐ
   clearInterval(state.quizHandle);
-  state.quizHandle = setInterval(()=>{
+  if(state.isHost) state.quizHandle = setInterval(()=>{
     state.quizTimer--;
     const numEl = document.getElementById('timerNum');
     const center = document.getElementById('clockBox');
@@ -1366,11 +1558,28 @@ function screenQuizActive(){
       clearInterval(state.quizHandle);
       const podiums = node.querySelectorAll('.podium');
       if(podiums[state.bombPosition]) podiums[state.bombPosition].classList.add('exploded');
-      showExplosion(()=> go('quizRoundResult', false));
+      state.cleared = false;
+      broadcastState();
+      showExplosion(()=> go('quizRoundResult'));
+    } else {
+      broadcastState();
     }
   },1000);
 
   return node;
+}
+
+function handleCorrectAnswer(){
+  clearInterval(state.quizHandle);
+  state.bombPosition++;
+  state.hintUsed = false;
+  broadcastState();
+  if(state.bombPosition >= state.answererOrder.length){
+    state.cleared = true;
+    setTimeout(()=>go('quizRoundResult'), 620);
+  } else {
+    setTimeout(()=>go('quizActive'), 620);
+  }
 }
 
 function showExplosion(callback){
@@ -1402,15 +1611,8 @@ function showIceBreak(callback){
 }
 
 /* ---------- 11. 1問ごとの結果 ---------- */
-let lastRoundCorrect = null;
-const _origGo = go;
-go = function(screen, arg){
-  if(screen === 'quizRoundResult'){ lastRoundCorrect = arg; }
-  _origGo(screen);
-};
-
 function screenQuizRoundResult(){
-  const wasCorrect = lastRoundCorrect;
+  const wasCorrect = state.cleared;
   const node = el(`
     <div class="screen">
       <div class="result-hero">
@@ -1430,20 +1632,18 @@ function screenQuizRoundResult(){
         <span>答え終えた人数</span><b>${state.bombPosition} / ${state.answererOrder.length}</b>
       </div>
       <p class="sub" style="margin:2px 0 12px;">もう一度あそぶ？（新しい問題・出題者に交代します）</p>
-      <div class="btn-row">
+      <div class="btn-row" style="display:${state.nickname === state.questioner ? 'flex' : 'none'}">
         <button class="btn btn-secondary" id="again">もう一度あそぶ</button>
         <button class="btn btn-primary" id="end">もう終わりにする</button>
       </div>
+      ${state.nickname === state.questioner ? '' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">出題者の選択を待っています…</div>'}
     </div>
   `);
   node.querySelector('#again').onclick = ()=>{
-    state.history.push({questioner: state.questioner, question: state.question, cleared: wasCorrect});
-    state.quizIndex++;
-    startQuizRound();
+    requestAction('PLAY_AGAIN');
   };
   node.querySelector('#end').onclick = ()=>{
-    state.history.push({questioner: state.questioner, question: state.question, cleared: wasCorrect});
-    go('finalResult');
+    requestAction('END_GAME');
   };
   return node;
 }
@@ -1468,12 +1668,11 @@ function screenFinalResult(){
         <label class="field-label">今日の感想・評価（任意）</label>
         <textarea id="rating" placeholder="楽しかった！次はもっと難しい問題で…など"></textarea>
       </div>
-      <button class="btn btn-primary" id="close">部屋に戻る</button>
+      ${state.isHost ? '<button class="btn btn-primary" id="close">部屋に戻る</button>' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の操作を待っています…</div>'}
     </div>
   `);
-  node.querySelector('#close').onclick = ()=>{
-    go('waitingRoom');
-  };
+  const closeButton = node.querySelector('#close');
+  if(closeButton) closeButton.onclick = ()=>go('waitingRoom');
   return node;
 }
 
