@@ -1319,8 +1319,8 @@ function renderPodiums(names, activeIndex, doneSet, explodedSet){
     const isExploded = explodedSet && explodedSet.has(i);
     return `
       <div class="${cls.join(' ')}">
-        <div class="wire"></div>
-        <div class="bomb-hang">${isExploded ? '💨' : '💣'}</div>
+     
+        <div class="bomb-hang">${isExploded ? '🔨' : '🔨🧊'}</div>
         <div class="stand"><div class="stand-name">${name}</div></div>
       </div>`;
   }).join('');
