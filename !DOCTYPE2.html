@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>導火線クイズ | ファイブボンバー風パーティーゲーム</title>
+<title>アイスボンバー</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -1058,8 +1058,8 @@ function requestAction(action){
 function performAction(action){
   if(!state.isHost) return;
   if(action === 'CHANGE_QUESTION'){
-    if(state.changeCount >= 2) return;
-    state.changeCount++;
+    //if(state.changeCount >= 2) return;
+    //state.changeCount++;
     const options = QUESTIONS.filter(question=>question !== state.question);
     state.question = options[Math.floor(Math.random()*options.length)];
     broadcastState();
@@ -1103,7 +1103,7 @@ function screenTitle(){
     <div class="screen">
       <div class="sunburst-wrap" style="text-align:center; padding:54px 0 30px;">
         <div class="eyebrow" style="justify-content:center;">PARTY QUIZ GAME</div>
-        <h1 class="tv-title" style="font-size:38px; margin:0 0 6px;">導火線クイズ</h1>
+        <h1 class="tv-title" style="font-size:38px; margin:0 0 6px;">アイスボンバー</h1>
         <p class="sub" style="margin-top:8px;">あたためて、こおらせろ。<br>爆弾を回して、最後は氷をブレイク。</p>
       </div>
       <div class="hazard-tape"></div>
@@ -1436,7 +1436,7 @@ function screenQuizPrep(){
         <div class="qtext" id="qtext">${state.question}</div>
       </div>
       <div class="btn-row" style="display:${amQuestioner ? 'flex' : 'none'}">
-        <button class="btn btn-secondary" id="change">🔄 問題を変更（残り${2-state.changeCount}回）</button>
+        <button class="btn btn-secondary" id="change">🔄 問題を変更</button>
       </div>
       <button class="btn btn-primary" id="decide" style="margin-top:10px; display:${amQuestioner ? 'flex' : 'none'};">この問題で決定</button>
       ${amQuestioner ? '' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px; margin-top:10px;">出題者が問題を選んでいます…</div>'}
@@ -1446,10 +1446,10 @@ function screenQuizPrep(){
 
   const changeBtn = node.querySelector('#change');
   changeBtn.onclick = ()=>{
-    if(state.changeCount >= 2){
-      alert('もう変更できません');
-      return;
-    }
+    //if(state.changeCount >= 2){
+    //  alert('もう変更できません');
+    //  return;
+    //}
     requestAction('CHANGE_QUESTION');
   };
   node.querySelector('#decide').onclick = ()=>{

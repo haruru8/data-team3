@@ -27,7 +27,7 @@
   function setupQuizPrep() {
     state.screen = 'quiz-prep';
     state.prepTime = 10;
-    state.changeCount = 0;
+    //state.changeCount = 0; changeの回数は何回でもよいので、初期化しない
     state.hintRequested = false;
     state.answeredPlayerIds = [];
     state.questionText = questionBank[Math.floor(Math.random() * questionBank.length)];
@@ -40,14 +40,10 @@
       hostConn.send({ type: 'CHANGE_QUESTION' });
       return;
     }
-    if (state.changeCount < 2) {
-      state.changeCount++;
       const candidates = questionBank.filter(question => question !== state.questionText);
       state.questionText = candidates[Math.floor(Math.random() * candidates.length)];
       hostBroadcastState();
-    } else {
-      document.getElementById('prep-change-count').innerText = '問題はもう換えられません。';
-    }
+    
   }
 
   function hostJudge(isCorrect) {
