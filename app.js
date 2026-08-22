@@ -81,10 +81,12 @@
         document.getElementById('prep-master-ui').style.display = 'block';
         document.getElementById('prep-guest-ui').style.display = 'none';
         document.getElementById('prep-question-text').innerText = state.questionText;
-        document.getElementById('prep-change-count').innerText = `残り変更回数: ${2 - state.changeCount}回`;
+        //残り回数を表示しない　document.getElementById('prep-change-count').innerText = `残り変更回数: ${2 - state.changeCount}回`;
         document.getElementById('btn-change-q').disabled = false;
         document.getElementById('btn-change-q').innerText = state.changeCount >= 2
-          ? 'もう換えられません' : '問題を変更する';
+          ? '問題を変更する'
+          : '問題を変更する';
+          
       } else {
         document.getElementById('prep-master-ui').style.display = 'none';
         document.getElementById('prep-guest-ui').style.display = 'block';
