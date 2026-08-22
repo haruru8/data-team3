@@ -145,7 +145,7 @@ p.sub{
   position:fixed; inset:0; z-index:999;
   background:radial-gradient(circle, rgba(255,190,0,.97) 0%, rgba(255,27,46,.97) 42%, rgba(5,5,5,.97) 100%);
   display:flex; align-items:center; justify-content:center;
-  animation:flashIn .85s ease forwards;
+  animation:flashIn 1.5s ease forwards;
 }
 .boom-text{
   font-family:var(--font-display); font-weight:900; font-size:15vw; max-font-size:52px;
@@ -268,7 +268,7 @@ body.phase-ice .sunburst-wrap::before{
   position:fixed; inset:0; z-index:999;
   background:radial-gradient(circle, rgba(255,180,60,.9) 0%, rgba(196,0,24,.55) 55%, rgba(5,5,5,0) 100%);
   display:flex; align-items:center; justify-content:center;
-  animation:igniteFlash .5s ease forwards;
+  animation:igniteFlash 1.5s ease forwards;
 }
 .ignite-text{
   font-family:var(--font-display); font-weight:900; font-size:8vw;
@@ -588,7 +588,7 @@ input[type=text]:focus, input[type=number]:focus{
   position:fixed; inset:0; z-index:999;
   background:radial-gradient(circle, rgba(255,255,255,.97) 0%, rgba(140,220,255,.95) 42%, rgba(10,25,45,.97) 100%);
   display:flex; align-items:center; justify-content:center;
-  animation:flashIn .95s ease forwards;
+  animation:flashIn 1.5s ease forwards;
 }
 .ice-text{
   font-family:var(--font-display); font-weight:900; font-size:9vw;
@@ -1090,7 +1090,7 @@ function showIgnite(){
   overlay.className = 'ignite-overlay';
   overlay.innerHTML = `<div class="ignite-text">🔥 点火！</div>`;
   document.body.appendChild(overlay);
-  setTimeout(()=>overlay.remove(), 500);
+  setTimeout(()=>overlay.remove(), 1500);
 }
 
 function cleanNickname(value){
@@ -1689,7 +1689,7 @@ function showExplosion(callback){
     overlay.remove();
     app.classList.remove('shake');
     callback();
-  }, 820);
+  }, 1500);
 }
 
 function showIceBreak(callback){
@@ -1703,7 +1703,7 @@ function showIceBreak(callback){
     overlay.remove();
     app.classList.remove('shake');
     callback();
-  }, 950);
+  }, 1500);
 }
 
 /* ---------- 11. 1問ごとの結果 ---------- */
