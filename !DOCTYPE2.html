@@ -500,8 +500,9 @@ input[type=text]:focus, input[type=number]:focus{
   display:flex; flex-direction:column; align-items:center;
 }
 .wire{width:2px; height:22px; background:#555;}
+/* 赤いモヤを削除し、純粋な揺れアニメーションのみ適用 */
 .bomb-hang{font-size:21px; margin-bottom:2px; transition:.3s; filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));}
-.podium.active .bomb-hang{animation:swing 1.1s ease-in-out infinite; filter:drop-shadow(0 0 9px rgba(255,59,59,.8));}
+.podium.active .bomb-hang{animation:swing 1.1s ease-in-out infinite;}
 @keyframes swing{0%,100%{transform:rotate(-9deg);} 50%{transform:rotate(9deg);}}
 .stand{
   width:100%;
@@ -511,7 +512,8 @@ input[type=text]:focus, input[type=number]:focus{
   padding:7px 3px 9px;
   text-align:center;
 }
-.podium.active .stand{border-bottom-color:var(--fuse-1); box-shadow:0 0 12px rgba(255,59,59,.45);}
+/* 名前部分の赤いエフェクトを削除し、黄色のハイライトに変更 */
+.podium.active .stand{border-bottom-color:var(--gold); box-shadow:0 0 12px rgba(255,212,0,.45);}
 .podium.done .stand{border-bottom-color:var(--ok);}
 .podium.exploded .bomb-hang{filter:none;}
 .podium.exploded .stand{background:linear-gradient(180deg,#1a1a1a,#0a0a0a); border-bottom-color:#444;}
@@ -794,11 +796,11 @@ function updateChrome(){
 
 function render(skipAnimation = false){
   const app = document.getElementById('app');
-  app.innerHTML = '';
   const visibleScreen = !state.isHost && state.screen === 'roomCreate' ? 'waitingRoom' : state.screen;
   const screenNode = SCREENS[visibleScreen]();
   if(skipAnimation) screenNode.style.animation = 'none';
-  app.appendChild(screenNode);
+  // DOMを入れ替えることで画面更新時のチラつきを抑える
+  app.replaceChildren(screenNode);
   updateChrome();
 }
 function go(screen){
@@ -1340,13 +1342,8 @@ function screenIntroRunning(){
         <div id="timerNum" style="font-family:var(--font-mono); font-weight:800; font-size:46px; color:var(--fuse-1);">${state.introTimer}</div>
         <div style="font-size:11px; color:var(--text-dim); font-family:var(--font-mono);">SEC LEFT</div>
       </div>
-      <div class="btn-row">
-        ${state.isHost ? '<button class="btn btn-secondary" id="skip">次の人へ →</button>' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者が進行しています…</div>'}
-      </div>
     </div>
   `);
-  const skipButton = node.querySelector('#skip');
-  if(skipButton) skipButton.onclick = ()=>{ clearInterval(state.introTimerHandle); advanceIntro(); };
 
   clearInterval(state.introTimerHandle);
   if(state.isHost) state.introTimerHandle = setInterval(()=>{
