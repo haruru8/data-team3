@@ -981,7 +981,7 @@ function updateRoomCreateStatus(){
   const count = document.getElementById('hostParticipantCount');
   const confirm = document.getElementById('confirm');
   if(code) code.textContent = state.roomCode || '準備中…';
-  if(count) count.textContent = `👥 ${state.participants.length}人が入室中`;
+  if(count) count.textContent = `👥 ${state.participants.length}人が入室中(最大10人)`;
   if(confirm) confirm.disabled = state.participants.length < 2;
 }
 
@@ -1028,7 +1028,7 @@ function handleGuestMessage(data, conn){
       conn.send({type:'JOIN_ERROR', message:'同じニックネームが使われています。別の名前で入り直してください。'});
       return;
     }
-    if(state.players.length >= 8){
+    if(state.players.length >= 10){
       conn.send({type:'JOIN_ERROR', message:'この部屋は満員です。'});
       return;
     }
@@ -1122,7 +1122,7 @@ function screenNickname(){
     <div class="screen">
       <div class="eyebrow">STEP 1 / ニックネーム</div>
       <h1 class="page-title">名前を入力してね</h1>
-      <p class="sub">テーブルではこの名前で表示されます</p>
+      <p class="sub">テーブルではこの名前で表示されます<br>※1部屋につき最大10人まで参加可能です</p>
       <div class="card">
         <div class="field">
           <label class="field-label">ニックネーム</label>
@@ -1176,7 +1176,7 @@ function screenRoomCreate(){
         <label class="field-label">あいことば</label>
         <div class="code-display" id="hostRoomCode">${state.roomCode || '準備中…'}</div>
         <p class="demo-note">参加者は同じサイトを開き、このあいことばで入室してください</p>
-        <div class="btn btn-secondary" id="hostParticipantCount" style="margin-top:14px; cursor:default;">👥 ${state.participants.length}人が入室中</div>
+        <div class="btn btn-secondary" id="hostParticipantCount" style="margin-top:14px; cursor:default;">👥 ${state.participants.length}人が入室中(最大10人)</div>
       </div>
       <button class="btn btn-primary" id="confirm" ${state.participants.length < 2 ? 'disabled' : ''}>部屋を確定する</button>
     </div>
