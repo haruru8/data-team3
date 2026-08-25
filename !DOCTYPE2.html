@@ -1505,15 +1505,31 @@ function screenQuizPrep(){
 }
 
 /* ---------- 10. クイズ本番 ---------- */
+// 最初は青と赤。人数が増えるたび、positionの位置へ中間色を追加する。
+const LANE_COLOR_STOPS = [
+  {position:0,     hex:'#238bff', rgb:'35 139 255'},  // 青
+  {position:1,     hex:'#df3f45', rgb:'223 63 69'},   // 赤
+  {position:.5,    hex:'#f2d13d', rgb:'242 209 61'},  // 黄
+  {position:.25,   hex:'#3dbb55', rgb:'61 187 85'},   // 緑
+  {position:.75,   hex:'#f07b2d', rgb:'240 123 45'},  // オレンジ
+  {position:.125,  hex:'#20b8c5', rgb:'32 184 197'},  // 青緑
+  {position:.375,  hex:'#9acb3c', rgb:'154 203 60'},  // 黄緑
+  {position:.625,  hex:'#f3a832', rgb:'243 168 50'},  // 琥珀
+  {position:.875,  hex:'#ec5438', rgb:'236 84 56'},   // 朱色
+  {position:.0625, hex:'#24a5e3', rgb:'36 165 227'}   // 水色
+];
+
+function buildLaneColors(count){
+  return LANE_COLOR_STOPS.slice(0,count).sort((a,b)=>a.position-b.position);
+}
+
 function renderStageTrack(names, activeIndex){
-  const laneColors = [
-    {hex:'#238bff', rgb:'35 139 255'}
-  ];
+  const laneColors = buildLaneColors(names.length);
   const podiums = names.map((name,i)=>{
     const cls = ['podium'];
     if(i===activeIndex) cls.push('active');
     if(i<activeIndex) cls.push('passed');
-    const color = laneColors[i % laneColors.length];
+    const color = laneColors[i];
     const laneContent = i < activeIndex
       ? '<div class="cylinder-check">✓</div>'
       : i === activeIndex
