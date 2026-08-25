@@ -166,8 +166,8 @@ p.sub{
    氷⇔警報：フェーズ別テーマ（ロビー系は氷、クイズ本番は警報）
 ========================================================= */
 :root{
-  --ice-bg-1:#0d1a24;
-  --ice-bg-2:#132631;
+  --ice-bg-1:#cfeff7;
+  --ice-bg-2:#bfe7f2;
   --ice-panel:#16303e;
   --ice-panel-2:#1c3a4a;
   --ice-line:#2f5468;
@@ -176,8 +176,7 @@ p.sub{
 }
 body.phase-ice{
   background:
-    radial-gradient(1000px 620px at 15% -10%, rgba(127,224,255,0.14), transparent 55%),
-    radial-gradient(800px 560px at 100% 0%, rgba(201,243,255,0.08), transparent 50%),
+    radial-gradient(1000px 620px at 15% -10%, rgba(255,255,255,.4), transparent 55%),
     var(--ice-bg-1);
   transition:background .6s ease;
 }
@@ -239,7 +238,7 @@ body.phase-ice .sunburst-wrap::before{
 /* 雪の粒子（氷フェーズのみ） */
 .snowfield{position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0;}
 .snowfield span{
-  position:absolute; top:-5%; color:rgba(201,243,255,.55); font-size:12px;
+  position:absolute; top:-5%; color:rgba(74,157,184,.58); font-size:12px;
   animation:snowFall linear infinite;
 }
 @keyframes snowFall{
@@ -805,7 +804,7 @@ function setupChrome(){
     const snow = document.createElement('div');
     snow.id = 'snowfield';
     snow.className = 'snowfield';
-    for(let i=0;i<7;i++){
+    for(let i=0;i<18;i++){
       const flake = document.createElement('span');
       flake.textContent = '❄';
       flake.style.left = (Math.random()*100)+'%';
