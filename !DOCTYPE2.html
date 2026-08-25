@@ -492,7 +492,7 @@ input[type=text]:focus, input[type=number]:focus{
 .studio-clock.danger .num{color:var(--fuse-1); animation:pulse .5s infinite alternate;}
 .studio-clock .lbl{font-size:8.5px; color:var(--text-dim); font-family:var(--font-mono); letter-spacing:.1em;}
 .podium-row{
-  display:flex; justify-content:center; align-items:flex-end; gap:8px;
+  display:flex; align-items:flex-end; gap:8px;
   padding-bottom:0;
 }
 .podium{
@@ -523,33 +523,67 @@ input[type=text]:focus, input[type=number]:focus{
   background:repeating-linear-gradient(90deg, rgba(255,212,0,.55) 0 10px, rgba(0,0,0,.55) 10px 20px);
 }
 
-/* ---- 導火線トラック：回答中のレーン内で爆弾が落下する ---- */
+/* ---- 導火線の処理：回答中のレーン内で爆弾が落下する ---- */
 .stage-track{
   position:relative;
-  display:flex; align-items:flex-end; gap:8px;
-  padding-top:100px;
+  display:flex; justify-content:center; align-items:flex-end; gap:8px;
+  padding-top:8px;
+  width:max-content;
+  min-width:100%;
 }
-/* 縦のレール（本家のように、吊るすのではなく筒の中を滑り落ちる） */
-.bomb-rail{
-  position:absolute; top:2px; left:0;
-  width:22px; height:96px;
-  border-radius:8px;
-  background:linear-gradient(180deg, #0a0b10, #1a1c22);
-  border:2px solid #000;
-  box-shadow:inset 0 0 8px rgba(0,0,0,.7), 2px 2px 0 rgba(0,0,0,.6);
-  /* 横位置は即座に確定し、再描画時に左端から滑り込ませない */
-  transition:none;
-  z-index:5;
+.stage-scroll{
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:2px 0 8px;
+  scrollbar-width:thin;
+}
+.stage-track .podium{
+  flex:0 0 50px;
+  opacity:.58;
+}
+.stage-track .podium.active{opacity:1;}
+.stage-track .podium.passed{opacity:.78;}
+.cylinder-lane{
+  position:relative;
+  width:34px;
+  height:112px;
+  margin:0 auto 6px;
   overflow:hidden;
+  border:2px solid rgb(var(--lane-rgb) / .8);
+  border-radius:50% / 7%;
+  background:rgb(var(--lane-rgb) / .13);
+  box-shadow:none;
 }
-.bomb-rail::before{
-  content:"";
-  position:absolute; inset:0;
-  background:repeating-linear-gradient(180deg, rgba(255,212,0,.22) 0 6px, transparent 6px 12px);
+.stage-track .podium.active .cylinder-lane{
+  border-color:var(--lane-color);
+  border-width:3px;
+  background:rgb(var(--lane-rgb) / .2);
+  box-shadow:none;
 }
-.rail-danger-zone{
-  position:absolute; left:0; right:0; bottom:0; height:26%;
-  background:linear-gradient(180deg, rgba(255,27,46,0), rgba(255,27,46,.35));
+.cylinder-check{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--lane-color);
+  font-size:24px;
+  font-weight:900;
+  text-shadow:0 1px 2px rgba(0,0,0,.7);
+}
+.stage-track .stand{border-bottom-color:var(--lane-color);}
+.stage-track .podium.active .stand{
+  border-bottom-color:var(--lane-color);
+  box-shadow:none;
+}
+.stage-track .podium.passed .stand{border-bottom-color:var(--lane-color);}
+.lane-status{
+  margin-top:3px;
+  color:var(--lane-color);
+  font-family:var(--font-mono);
+  font-size:8px;
+  font-weight:700;
+  white-space:nowrap;
 }
 .roaming-bomb{
   position:absolute; left:50%; top:0;
@@ -1472,52 +1506,67 @@ function screenQuizPrep(){
 
 /* ---------- 10. クイズ本番 ---------- */
 function renderStageTrack(names, activeIndex){
+  const laneColors = [
+    {hex:'#238bff', rgb:'35 139 255'}
+  ];
   const podiums = names.map((name,i)=>{
     const cls = ['podium'];
     if(i===activeIndex) cls.push('active');
-    if(i<state.bombPosition) cls.push('passed');
+    if(i<activeIndex) cls.push('passed');
+    const color = laneColors[i % laneColors.length];
+    const laneContent = i < activeIndex
+      ? '<div class="cylinder-check">✓</div>'
+      : i === activeIndex
+      ? '<div class="roaming-bomb" id="roamingBomb">💣</div>'
+      : '';
+    const status = i < activeIndex ? '正解' : i === activeIndex ? '回答中' : '待機';
     return `
-      <div class="${cls.join(' ')}" data-slot="${i}">
-        <div class="stand"><div class="stand-name">${name}</div></div>
+      <div class="${cls.join(' ')}" data-slot="${i}" style="--lane-color:${color.hex};--lane-rgb:${color.rgb}">
+        <div class="cylinder-lane">${laneContent}</div>
+        <div class="stand">
+          <div class="stand-name">${name}</div>
+          <div class="lane-status">${status}</div>
+        </div>
       </div>`;
   }).join('');
   return `
-    <div class="stage-track" id="stageTrack">
-      ${podiums}
-      <div class="ice-block" id="iceBlock" data-slot="${names.length}">
-        <div class="ice-emoji">🧊</div>
-        <div class="ice-label">ICE BLOCK</div>
-      </div>
-      <div class="bomb-rail" id="bombRail">
-        <div class="rail-danger-zone"></div>
-        <div class="roaming-bomb" id="roamingBomb">💣</div>
+    <div class="stage-scroll">
+      <div class="stage-track" id="stageTrack">
+        ${podiums}
+        <div class="ice-block" id="iceBlock" data-slot="${names.length}">
+          <div class="ice-emoji">🧊</div>
+          <div class="ice-label">ICE BLOCK</div>
+        </div>
       </div>
     </div>`;
 }
 function positionBomb(){
   const track = document.getElementById('stageTrack');
-  const rail = document.getElementById('bombRail');
-  if(!track || !rail) return;
+  if(!track) return;
   const targetSel = state.bombPosition >= state.answererOrder.length
     ? '#iceBlock' : `.podium[data-slot="${state.bombPosition}"]`;
   const target = track.querySelector(targetSel);
   if(!target) return;
-  const trackRect = track.getBoundingClientRect();
-  const tRect = target.getBoundingClientRect();
-  rail.style.left = (tRect.left - trackRect.left + tRect.width/2 - rail.offsetWidth/2) + 'px';
+  const scroller = track.closest('.stage-scroll');
+  if(scroller){
+    const targetCenter = target.offsetLeft + target.offsetWidth/2;
+    const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    scroller.scrollLeft = Math.max(0, Math.min(maxScroll, targetCenter - scroller.clientWidth/2));
+  }
 }
 
 /* 共通タイマーが減るほど、レールの中を爆弾がはっきり分かる速さで滑り落ちる（本家演出） */
-const BOMB_RAIL_TRAVEL = 70; // レール内で爆弾が動ける距離(px)。レール高さ(96px)よりアイコン分小さくして見切れを防ぐ
+const BOMB_RAIL_START = 8;
+const BOMB_RAIL_TRAVEL = 76;
 function updateBombDrop(animate = true){
   const bomb = document.getElementById('roamingBomb');
   if(!bomb) return;
   const total = state.roundTimeTotal || 30;
   const frac = Math.max(0, Math.min(1, state.quizTimer / total)); // 1=開始, 0=時間切れ
-  // 序盤から目に見えて落ち、終盤は下で激しく震える：sqrtカーブで最初の落下を強調
-  const y = Math.sqrt(1 - frac);
+  // 経過時間に比例させ、試験管の中を最初から最後まで一定速度で落とす
+  const y = 1 - frac;
   if(!animate) bomb.style.transition = 'none';
-  bomb.style.top = (y * BOMB_RAIL_TRAVEL) + 'px';
+  bomb.style.top = (BOMB_RAIL_START + y * BOMB_RAIL_TRAVEL) + 'px';
   bomb.classList.toggle('critical', state.quizTimer <= 5);
   if(!animate){
     requestAnimationFrame(()=>{
