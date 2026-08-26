@@ -1213,6 +1213,21 @@ function genCode(){
   return String(Math.floor(100000 + Math.random()*900000));
 }
 
+async function copyRoomCode(code){
+  try{
+    await navigator.clipboard.writeText(code);
+  } catch(error){
+    const input = document.createElement('textarea');
+    input.value = code;
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    input.remove();
+  }
+}
+
 /* ---------- 3a. あいことば作成（ホスト） ---------- */
 function screenRoomCreate(){
   const node = el(`
@@ -1224,6 +1239,7 @@ function screenRoomCreate(){
       <div class="card">
         <label class="field-label">あいことば</label>
         <div class="code-display" id="hostRoomCode">${state.roomCode || '準備中…'}</div>
+        <button class="btn btn-secondary" id="copyRoomCode" style="margin-top:12px;">📋 あいことばをコピー</button>
         <p class="demo-note">参加者は同じサイトを開き、このあいことばで入室してください</p>
         <div class="btn btn-secondary" id="hostParticipantCount" style="margin-top:14px; cursor:default;">👥 ${state.participants.length}人が入室中(最大10人)</div>
       </div>
@@ -1231,6 +1247,12 @@ function screenRoomCreate(){
     </div>
   `);
   node.querySelector('#back').onclick = ()=>{ destroyPeer(); go('nickname'); };
+  node.querySelector('#copyRoomCode').onclick = async event=>{
+    await copyRoomCode(state.roomCode);
+    const button = event.currentTarget;
+    button.textContent = '✅ コピーしました';
+    setTimeout(()=>{ button.textContent = '📋 あいことばをコピー'; }, 1600);
+  };
   node.querySelector('#confirm').onclick = ()=>{
     if(state.participants.length < 2){ alert('参加者が入室するまで待ってください'); return; }
     go('waitingRoom');
