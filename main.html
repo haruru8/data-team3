@@ -675,6 +675,51 @@ input[type=text]:focus, input[type=number]:focus{
 .role-badge.q{background:rgba(255,138,61,.15); color:var(--fuse-1); border:1px solid var(--fuse-1);}
 .role-badge.a{background:rgba(111,227,166,.12); color:var(--ok); border:1px solid var(--ok);}
 
+.role-selector{
+  display:grid;
+  grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);
+  gap:12px;
+  margin:16px 0;
+  align-items:start;
+}
+.role-column-title{
+  font-family:var(--font-mono);
+  font-size:11px;
+  color:var(--text-dim);
+  margin-bottom:7px;
+}
+.questioner-slot,
+.answerer-option{
+  appearance:none;
+  width:100%;
+  min-height:48px;
+  border:2px solid var(--line);
+  border-radius:12px;
+  background:var(--panel-2);
+  color:var(--text);
+  padding:13px 8px;
+  font-family:var(--font-display);
+  font-weight:800;
+  cursor:pointer;
+}
+.questioner-slot{
+  min-height:72px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-style:dashed;
+}
+.questioner-slot.selected{
+  border-color:var(--gold);
+  border-style:solid;
+  background:rgba(255,212,0,.14);
+  box-shadow:0 0 0 2px rgba(255,212,0,.2);
+}
+.questioner-slot.empty{color:var(--text-dim); font-size:12px;}
+.answerer-list{display:grid; gap:7px;}
+.questioner-slot:disabled,
+.answerer-option:disabled{cursor:default;}
+
 .action-row{display:flex; gap:10px; margin-top:14px;}
 .btn-circle{
   flex:1; aspect-ratio:1.5; border-radius:16px; border:none; cursor:pointer;
@@ -970,8 +1015,8 @@ function createPeerRoom(){
     connectionStatus = 'connected';
     state.players = [{id, name:state.nickname}];
     state.participants = [state.nickname];
-    if(state.screen === 'nickname') go('roomCreate');
-    else updateRoomCreateStatus();
+    if(state.screen === 'nickname') go('waitingRoom');
+    else refreshRoomDisplay();
   });
   peer.on('connection', conn=>{
     guestConnections.push(conn);
@@ -1161,7 +1206,7 @@ function cleanNickname(value){
 
 /* ---------- 1. タイトル ---------- */
 function screenTitle(){
-  return el(`
+  const node = el(`
     <div class="screen">
       <div class="sunburst-wrap" style="text-align:center; padding:54px 0 30px;">
         <h1 class="tv-title" style="font-size:38px; margin:0 0 6px;">アイスボンバー</h1>
@@ -1174,12 +1219,15 @@ function screenTitle(){
       </div>
     </div>
   `);
+  node.querySelector('#start').onclick = ()=>go('nickname');
+  return node;
 }
 
 /* ---------- 2. ニックネーム入力 + 部屋を作る/入る ---------- */
 function screenNickname(){
   const node = el(`
     <div class="screen">
+      <button class="back-link" id="back">← タイトルへ戻る</button>
       <div class="eyebrow">STEP 1 / ニックネーム</div>
       <h1 class="page-title">名前を入力してね</h1>
       <p class="sub">テーブルではこの名前で表示されます<br>※1部屋につき最大10人まで参加可能です</p>
@@ -1201,6 +1249,10 @@ function screenNickname(){
       </div>
     </div>
   `);
+  node.querySelector('#back').onclick = ()=>{
+    destroyPeer();
+    go('title');
+  };
   node.querySelector('#mkRoom').onclick = ()=>{
     const v = cleanNickname(node.querySelector('#nick').value);
     if(!v){ alert('ニックネームを入力してください'); return; }
@@ -1250,7 +1302,7 @@ function screenRoomCreate(){
       <div class="card">
         <label class="field-label">あいことば</label>
         <div class="code-display" id="hostRoomCode">${state.roomCode || '準備中…'}</div>
-        <button class="btn btn-secondary" id="copyRoomCode" style="margin-top:12px;">📋 あいことばをコピー</button>
+        <button class="btn btn-secondary" id="copyRoomCode" style="margin-top:12px;"> あいことばをコピー</button>
         <p class="demo-note">参加者は同じサイトを開き、このあいことばで入室してください</p>
         <div class="btn btn-secondary" id="hostParticipantCount" style="margin-top:14px; cursor:default;">👥 ${state.participants.length}人が入室中(最大10人)</div>
       </div>
@@ -1261,8 +1313,8 @@ function screenRoomCreate(){
   node.querySelector('#copyRoomCode').onclick = async event=>{
     await copyRoomCode(state.roomCode);
     const button = event.currentTarget;
-    button.textContent = '✅ コピーしました';
-    setTimeout(()=>{ button.textContent = '📋 あいことばをコピー'; }, 1600);
+    button.textContent = 'コピーしました';
+    setTimeout(()=>{ button.textContent = 'あいことばをコピー'; }, 1600);
   };
   node.querySelector('#confirm').onclick = ()=>{
     if(state.participants.length < 2){ alert('参加者が入室するまで待ってください'); return; }
@@ -1308,6 +1360,14 @@ function screenWaitingRoom(){
       <div class="eyebrow">ROOM · ${state.roomCode}</div>
       <h1 class="page-title">入室メンバー</h1>
       <p class="sub">${waitingForConnection ? '部屋へ接続しています…' : `${state.participants.length}人が部屋にいます`}</p>
+      ${state.isHost ? `
+        <div class="card">
+          <label class="field-label">あいことば</label>
+          <div class="code-display">${state.roomCode}</div>
+          <button class="btn btn-secondary" id="copyRoomCode" style="margin-top:12px;"> あいことばをコピー</button>
+          <p class="demo-note">このあいことばを参加者へ共有してください</p>
+        </div>
+      ` : ''}
       <div class="card">
         <ul class="plist">
           ${waitingForConnection ? '<li style="color:var(--text-dim);">接続中…</li>' : state.participants.map((p,i)=>`
@@ -1315,11 +1375,18 @@ function screenWaitingRoom(){
           `).join('')}
         </ul>
       </div>
-      ${state.isHost ? `<button class="btn btn-primary" id="next" ${state.participants.length < 2 ? 'disabled' : ''}>この人数ではじめる →</button>`
+      ${state.isHost ? `<button class="btn btn-primary" id="next" ${state.participants.length < 2 ? 'disabled' : ''}>このメンバーではじめる →</button>`
         : `<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>`}
       ${state.isHost ? `<p class="demo-note">主催者だけが次に進めます</p>` : ''}
     </div>
   `);
+  const copyBtn = node.querySelector('#copyRoomCode');
+  if(copyBtn) copyBtn.onclick = async event=>{
+    await copyRoomCode(state.roomCode);
+    const button = event.currentTarget;
+    button.textContent = '✅ コピーしました';
+    setTimeout(()=>{ button.textContent = '📋 あいことばをコピー'; }, 1600);
+  };
   const nextBtn = node.querySelector('#next');
   if(nextBtn) nextBtn.onclick = ()=>go('modeSelect');
   return node;
@@ -1367,6 +1434,7 @@ function screenModeSelect(){
   node.querySelector('#quizOnly').onclick = ()=>{
     if(!state.isHost) return;
     state.mode = 'quiz_only';
+    state.questioner = null;
     go('quizStartGate');
   };
   return node;
@@ -1446,6 +1514,7 @@ function screenIntroRunning(){
 function advanceIntro(){
   state.introIndex++;
   if(state.introIndex >= state.participants.length){
+    state.questioner = null;
     go('quizStartGate');
   } else {
     state.introTimer = 30;
@@ -1455,8 +1524,8 @@ function advanceIntro(){
 
 /* ---------- 8. クイズ開始ゲート ---------- */
 function screenQuizStartGate(){
-  const firstQuestioner = state.participants[0];
-  const others = state.participants.slice(1);
+  const selectedQuestioner = state.participants.includes(state.questioner) ? state.questioner : null;
+  const others = state.participants.filter(name=>name !== selectedQuestioner);
   const node = el(`
     <div class="screen">
       <div class="eyebrow">QUIZ GAME</div>
@@ -1464,18 +1533,54 @@ function screenQuizStartGate(){
       <p class="sub">1問につき、出題者以外の全員が同じ問題に順番に挑戦します。正解するたびに爆弾が隣の人へ。全員が答え終わったら――右端のアイスブロックに命中してクリアです。タイマーは1問を通してひとつだけ。</p>
       <div class="card" style="text-align:center; padding:30px 20px;">
         <div style="font-size:40px; margin-bottom:8px;">💣 → 🧊</div>
+        <div style="font-family:var(--font-display); font-weight:800;">出題者を選んでください</div>
+        <div class="role-selector">
+          <div>
+            <div class="role-column-title">出題者</div>
+            <button class="questioner-slot ${selectedQuestioner ? 'selected' : 'empty'}"
+              id="questionerSlot" ${state.isHost && selectedQuestioner ? '' : 'disabled'}>
+              ${selectedQuestioner || 'ここに選択'}
+            </button>
+          </div>
+          <div>
+            <div class="role-column-title">回答者</div>
+            <div class="answerer-list">
+              ${others.map(name=>`
+                <button class="answerer-option" data-name="${name}" ${state.isHost ? '' : 'disabled'}>${name}</button>
+              `).join('')}
+            </div>
+          </div>
+        </div>
         <div style="font-size:13px; color:var(--text-dim); line-height:1.7;">
-          最初の出題者：<b style="color:var(--gold); font-family:var(--font-mono);">${firstQuestioner}</b><br>
-          回答者：<b style="color:var(--gold); font-family:var(--font-mono);">${others.join(' → ')}</b>
+          ${selectedQuestioner
+            ? '左の名前をクリックすると選び直せます'
+            : state.isHost ? '右側の名前をクリックしてください' : 'ホストが出題者を選んでいます…'}
         </div>
       </div>
-      ${state.isHost ? '<button class="btn btn-primary" id="start">スタート</button>' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>'}
+      ${state.isHost ? `<button class="btn btn-primary" id="start" ${selectedQuestioner ? '' : 'disabled'}>スタート</button>` : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>'}
     </div>
   `);
+  node.querySelectorAll('.answerer-option').forEach(button=>{
+    button.onclick = ()=>{
+      if(!state.isHost) return;
+      state.questioner = button.dataset.name;
+      broadcastState();
+      render(true);
+    };
+  });
+  const questionerSlot = node.querySelector('#questionerSlot');
+  if(questionerSlot && state.isHost && selectedQuestioner){
+    questionerSlot.onclick = ()=>{
+      state.questioner = null;
+      broadcastState();
+      render(true);
+    };
+  }
   const startButton = node.querySelector('#start');
   if(startButton) startButton.onclick = ()=>{
+    if(!state.questioner) return;
     state.bombPosition = 0;
-    state.quizIndex = 0;
+    state.quizIndex = state.participants.indexOf(state.questioner);
     state.history = [];
     startQuizRound();
   };
@@ -1903,8 +2008,6 @@ const SCREENS = {
 setupChrome();
 document.getElementById('app').appendChild(screenTitle());
 updateChrome();
-document.getElementById('app').querySelector('#start') &&
-  (document.getElementById('app').querySelector('#start').onclick = ()=>go('nickname'));
 </script>
 </body>
 </html>
