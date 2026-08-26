@@ -766,6 +766,12 @@ let guestConnections = [];
 let myPeerId = '';
 let connectionStatus = 'idle';
 
+const correctSound = new Audio('./sounds/correct.mp3');
+const wrongSound = new Audio('./sounds/wrong.mp3');
+
+correctSound.preload = 'auto';
+wrongSound.preload = 'auto';
+
 const QUESTIONS = [
   '好きな映画のジャンルは？',
   '最近ハマっている食べ物は？',
@@ -1661,9 +1667,13 @@ function screenQuizActive(){
   renderRoleView();
 
   function onCorrect(){
+    correctSound.currentTime = 0;
+    correctSound.play();
     requestAction('JUDGE_CORRECT');
   }
   function onWrong(){
+    wrongSound.currentTime = 0;
+    wrongSound.play();
     requestAction('JUDGE_WRONG');
     const wrap = node.querySelector('#roleView');
     const flash = document.createElement('div');
