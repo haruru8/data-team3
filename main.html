@@ -173,12 +173,23 @@ p.sub{
   --ice-line:#2f5468;
   --ice-accent:#7fe0ff;
   --ice-accent-2:#c9f3ff;
+  --ice-text:#173746;
+  --ice-text-dim:#496b79;
 }
 body.phase-ice{
   background:
     radial-gradient(1000px 620px at 15% -10%, rgba(255,255,255,.4), transparent 55%),
     var(--ice-bg-1);
   transition:background .6s ease;
+}
+body.phase-ice .screen > .page-title{
+  color:var(--ice-text);
+}
+body.phase-ice .screen > p.sub{
+  color:var(--ice-text-dim);
+}
+body.phase-ice .screen > .eyebrow{
+  color:#16718e;
 }
 body.phase-hot{
   background:
