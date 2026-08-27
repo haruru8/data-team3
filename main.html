@@ -542,7 +542,7 @@ function createPeerRoom(){
   peer.on('open', id=>{
     myPeerId = id; connectionStatus = 'connected';
     state.players = [{id, name:state.nickname}]; state.participants = [state.nickname];
-    if(state.screen === 'nickname') go('roomCreate'); else updateRoomCreateStatus();
+    if(state.screen === 'nickname') go('waitingRoom'); else refreshRoomDisplay();
   });
   peer.on('connection', conn=>{ guestConnections.push(conn); conn.on('data', data=>handleGuestMessage(data, conn)); conn.on('close', ()=>removeGuest(conn.peer)); });
   peer.on('error', error=>{ if(error.type === 'unavailable-id'){ createPeerRoom(); return; } showConnectionError('部屋を作成できませんでした。インターネット接続を確認してください。'); });
@@ -617,7 +617,7 @@ function cleanNickname(value){ return value.replace(/[<>&"'`]/g, '').trim().slic
 
 /* ---------- 1. タイトル ---------- */
 function screenTitle(){
-  return el(`
+  const node = el(`
     <div class="screen">
       <div style="text-align:center; padding:30px 0 10px;">
         <div class="title-logo">ICE<br><span>BOMBER</span></div>
@@ -629,12 +629,15 @@ function screenTitle(){
       </div>
     </div>
   `);
+  node.querySelector('#start').onclick = ()=>go('nickname');
+  return node;
 }
 
 /* ---------- 2. ニックネーム入力 + 部屋を作る/入る ---------- */
 function screenNickname(){
   const node = el(`
     <div class="screen">
+      <button class="back-link" id="back">← タイトルへ戻る</button>
       <div class="eyebrow">STEP 1 / ニックネーム</div>
       <h1 class="page-title">名前を入力してね</h1>
       <p class="sub">テーブルではこの名前で表示されます<br>※1部屋につき最大10人まで参加可能です</p>
@@ -656,6 +659,7 @@ function screenNickname(){
       </div>
     </div>
   `);
+  node.querySelector('#back').onclick = ()=>{ destroyPeer(); go('title'); };
   node.querySelector('#mkRoom').onclick = ()=>{
     const v = cleanNickname(node.querySelector('#nick').value); if(!v){ alert('ニックネームを入力してください'); return; }
     state.nickname = v; state.isHost = true;
@@ -728,6 +732,14 @@ function screenWaitingRoom(){
       <div class="eyebrow">ROOM · ${state.roomCode}</div>
       <h1 class="page-title">入室メンバー</h1>
       <p class="sub">${waitingForConnection ? '部屋へ接続しています…' : `${state.participants.length}人が部屋にいます`}</p>
+      ${state.isHost ? `
+        <div class="card">
+          <label class="field-label">あいことば</label>
+          <div class="code-display">${state.roomCode}</div>
+          <button class="btn btn-secondary" id="copyRoomCode" style="margin-top:12px;"><span class="icon">${SVGS.clipboard}</span> あいことばをコピー</button>
+          <p class="demo-note">このあいことばを参加者へ共有してください</p>
+        </div>
+      ` : ''}
       <div class="card">
         <ul class="plist">
           ${waitingForConnection ? '<li style="color:var(--text-dim);">接続中…</li>' : state.participants.map(p=>`
@@ -735,9 +747,16 @@ function screenWaitingRoom(){
           `).join('')}
         </ul>
       </div>
-      ${state.isHost ? `<button class="btn btn-primary" id="next" ${state.participants.length < 2 ? 'disabled' : ''}>この人数ではじめる →</button>` : `<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>`}
+      ${state.isHost ? `<button class="btn btn-primary" id="next" ${state.participants.length < 2 ? 'disabled' : ''}>このメンバーではじめる →</button>` : `<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>`}
     </div>
   `);
+  const copyBtn = node.querySelector('#copyRoomCode');
+  if(copyBtn) copyBtn.onclick = async event=>{
+    await copyRoomCode(state.roomCode);
+    const button = event.currentTarget;
+    button.innerHTML = `<span class="icon">${SVGS.check}</span> コピーしました`;
+    setTimeout(()=>{ button.innerHTML = `<span class="icon">${SVGS.clipboard}</span> あいことばをコピー`; }, 1600);
+  };
   const nextBtn = node.querySelector('#next'); if(nextBtn) nextBtn.onclick = ()=>go('modeSelect');
   return node;
 }
@@ -771,7 +790,7 @@ function screenModeSelect(){
     </div>
   `);
   node.querySelector('#withIntro').onclick = ()=>{ if(!state.isHost) return; state.mode = 'intro_quiz'; state.introIndex = 0; go('introPrep'); };
-  node.querySelector('#quizOnly').onclick = ()=>{ if(!state.isHost) return; state.mode = 'quiz_only'; go('quizStartGate'); };
+  node.querySelector('#quizOnly').onclick = ()=>{ if(!state.isHost) return; state.mode = 'quiz_only'; state.questioner = null; go('quizStartGate'); };
   return node;
 }
 
@@ -834,11 +853,12 @@ function screenIntroRunning(){
   }, 1000);
   return node;
 }
-function advanceIntro(){ state.introIndex++; if(state.introIndex >= state.participants.length){ go('quizStartGate'); } else { state.introTimer = 30; go('introRunning'); } }
+function advanceIntro(){ state.introIndex++; if(state.introIndex >= state.participants.length){ state.questioner = null; go('quizStartGate'); } else { state.introTimer = 30; go('introRunning'); } }
 
 /* ---------- 8. クイズ開始ゲート ---------- */
 function screenQuizStartGate(){
-  const firstQuestioner = state.participants[0]; const others = state.participants.slice(1);
+  const selectedQuestioner = state.participants.includes(state.questioner) ? state.questioner : null;
+  const others = state.participants.filter(name=>name !== selectedQuestioner);
   const node = el(`
     <div class="screen">
       <div class="eyebrow">QUIZ GAME</div>
@@ -854,16 +874,48 @@ function screenQuizStartGate(){
               ${SVGS.ice}
            </div>
         </div>
-        <div style="font-size:14px; color:var(--text-dim); line-height:1.8; font-weight:700;">
-          最初の出題者：<b style="color:var(--secondary); font-family:var(--font-mono); font-size:16px;">${firstQuestioner}</b><br>
-          回答者：<b style="color:var(--secondary); font-family:var(--font-mono); font-size:16px;">${others.join(' → ')}</b>
+        <div style="font-family:var(--font-display); font-weight:800;">最初の出題者をランダムで決めます</div>
+        ${state.isHost ? `<button class="btn btn-secondary" id="randomQuestioner" style="margin-top:14px;">
+          <span class="icon">${SVGS.refresh}</span> ${selectedQuestioner ? 'もう一度ランダムで決める' : 'ランダムで決める'}
+        </button>` : ''}
+        <div class="role-selector">
+          <div>
+            <div class="role-column-title">出題者</div>
+            <button class="questioner-slot ${selectedQuestioner ? 'selected' : 'empty'}" disabled>
+              ${selectedQuestioner || '未決定'}
+            </button>
+          </div>
+          <div>
+            <div class="role-column-title">回答者</div>
+            <div class="answerer-list">
+              ${others.map(name=>`<button class="answerer-option" disabled>${name}</button>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div style="font-size:13px; color:var(--text-dim); line-height:1.7;">
+          ${selectedQuestioner ? '選ばれた人以外の全員が回答者です' : state.isHost ? 'ボタンを押して決めてください' : 'ホストが出題者を決めています…'}
         </div>
       </div>
-      ${state.isHost ? '<button class="btn btn-primary" id="start">スタート</button>' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>'}
+      ${state.isHost ? `<button class="btn btn-primary" id="start" ${selectedQuestioner ? '' : 'disabled'}>スタート</button>` : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>'}
     </div>
   `);
+  const randomButton = node.querySelector('#randomQuestioner');
+  if(randomButton) randomButton.onclick = ()=>{
+    const candidates = state.participants.length > 1
+      ? state.participants.filter(name=>name !== selectedQuestioner)
+      : state.participants;
+    state.questioner = candidates[Math.floor(Math.random()*candidates.length)];
+    broadcastState();
+    render(true);
+  };
   const startButton = node.querySelector('#start');
-  if(startButton) startButton.onclick = ()=>{ state.bombPosition = 0; state.quizIndex = 0; state.history = []; startQuizRound(); };
+  if(startButton) startButton.onclick = ()=>{
+    if(!state.questioner) return;
+    state.bombPosition = 0;
+    state.quizIndex = state.participants.indexOf(state.questioner);
+    state.history = [];
+    startQuizRound();
+  };
   return node;
 }
 function startQuizRound(){
@@ -1144,7 +1196,6 @@ const SCREENS = {
 setupChrome();
 document.getElementById('app').appendChild(screenTitle());
 updateChrome();
-document.getElementById('app').querySelector('#start') && (document.getElementById('app').querySelector('#start').onclick = ()=>go('nickname'));
 </script>
 </body>
 </html>
