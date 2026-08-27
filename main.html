@@ -534,7 +534,20 @@ function updateSyncedTimer(){
 }
 
 function showConnectionError(message){ alert(message); }
-function destroyPeer(){ if(peer) peer.destroy(); peer = null; hostConnection = null; guestConnections = []; myPeerId = ''; connectionStatus = 'idle'; }
+function destroyPeer(nextStatus = 'idle'){
+  connectionStatus = nextStatus;
+  if(peer) peer.destroy();
+  peer = null; hostConnection = null; guestConnections = []; myPeerId = '';
+}
+function resetRoomSession(nextStatus = 'idle'){
+  destroyPeer(nextStatus);
+  state.roomCode = '';
+  state.joinCode = '';
+  state.players = [];
+  state.participants = [];
+  state.questioner = null;
+  state.answererOrder = [];
+}
 function createPeerRoom(){
   destroyPeer(); state.players = []; state.participants = []; connectionStatus = 'connecting';
   state.roomCode = genCode(); updateRoomCreateStatus();
@@ -553,13 +566,24 @@ function connectToRoom(code){
   peer.on('open', id=>{
     myPeerId = id; hostConnection = peer.connect(code);
     hostConnection.on('open', ()=>{ connectionStatus = 'connected'; hostConnection.send({type:'JOIN', id, name:state.nickname}); });
-    hostConnection.on('data', handleHostMessage); hostConnection.on('close', ()=>showConnectionError('ホストとの接続が切れました。')); hostConnection.on('error', ()=>showConnectionError('部屋に接続できませんでした。'));
+    hostConnection.on('data', handleHostMessage);
+    hostConnection.on('close', ()=>{
+      if(!['leaving','closed'].includes(connectionStatus)) showConnectionError('ホストとの接続が切れました。');
+    });
+    hostConnection.on('error', ()=>showConnectionError('部屋に接続できませんでした。'));
   });
   peer.on('error', error=>{ const message = error.type === 'peer-unavailable' ? '部屋が見つかりません。あいことばを確認してください。' : '接続できませんでした。インターネット接続を確認してください。'; showConnectionError(message); });
 }
 function handleHostMessage(data){
   if(data.type === 'SYNC_STATE'){ connectionStatus = 'connected'; applySharedState(data.state, data.renderRequired !== false); }
   if(data.type === 'JOIN_ERROR'){ connectionStatus = 'error'; showConnectionError(data.message); destroyPeer(); state.screen = 'roomJoin'; render(); }
+  if(data.type === 'ROOM_CLOSED'){
+    alert('ホストが部屋を解散しました。');
+    resetRoomSession('closed');
+    state.isHost = false;
+    state.screen = 'nickname';
+    render();
+  }
   if(data.type === 'PLAY_EFFECT'){ if(data.effect === 'iceBreak') showIceBreak(()=>{}); if(data.effect === 'explosion') showExplosion(()=>{}); }
 }
 function removeGuest(peerId){
@@ -729,6 +753,7 @@ function screenWaitingRoom(){
   const waitingForConnection = !state.isHost && state.participants.length === 0;
   const node = el(`
     <div class="screen">
+      <button class="back-link" id="leaveRoom">← ${state.isHost ? '部屋を解散する' : '部屋を抜ける'}</button>
       <div class="eyebrow">ROOM · ${state.roomCode}</div>
       <h1 class="page-title">入室メンバー</h1>
       <p class="sub">${waitingForConnection ? '部屋へ接続しています…' : `${state.participants.length}人が部屋にいます`}</p>
@@ -750,6 +775,22 @@ function screenWaitingRoom(){
       ${state.isHost ? `<button class="btn btn-primary" id="next" ${state.participants.length < 2 ? 'disabled' : ''}>このメンバーではじめる →</button>` : `<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>`}
     </div>
   `);
+  node.querySelector('#leaveRoom').onclick = ()=>{
+    const message = state.isHost ? '部屋を解散しますか？' : '部屋を抜けますか？';
+    if(!confirm(message)) return;
+    if(state.isHost){
+      guestConnections.filter(conn=>conn.open).forEach(conn=>conn.send({type:'ROOM_CLOSED'}));
+      setTimeout(()=>{
+        resetRoomSession('leaving');
+        state.isHost = false;
+        go('nickname');
+      }, 120);
+    } else {
+      resetRoomSession('leaving');
+      state.isHost = false;
+      go('nickname');
+    }
+  };
   const copyBtn = node.querySelector('#copyRoomCode');
   if(copyBtn) copyBtn.onclick = async event=>{
     await copyRoomCode(state.roomCode);
