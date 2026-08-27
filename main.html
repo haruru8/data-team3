@@ -728,11 +728,108 @@ footer.note{
   font-size:11px; color:var(--text-dim); text-align:center; margin:10px 0 0;
   font-family:var(--font-mono); line-height:1.6;
 }
+/* 開発者情報ボタン */
+.dev-info-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--panel-2);
+  border: 2px solid var(--line);
+  color: var(--text-dim);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  cursor: pointer;
+  z-index: 1000;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.6);
+  transition: .15s;
+}
+.dev-info-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  transform: translateY(-2px);
+  box-shadow: 5px 5px 0 rgba(0,0,0,0.6);
+}
+
+/* 開発者情報モーダル */
+.dev-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(5px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.dev-modal-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.dev-modal {
+  background: var(--panel);
+  border: 2.5px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 90%;
+  max-width: 340px;
+  box-shadow: 5px 5px 0 rgba(0,0,0,0.85);
+  transform: translateY(20px);
+  transition: transform 0.2s ease;
+  color: var(--text);
+  font-family: var(--font-body);
+}
+.dev-modal-overlay.show .dev-modal {
+  transform: translateY(0);
+}
+.dev-modal h2 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 20px;
+  margin: 0 0 16px;
+  color: var(--gold);
+}
+.dev-modal p {
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0 0 24px;
+  color: var(--text-dim);
+}
+.dev-modal p span {
+  color: var(--text);
+}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<button class="dev-info-btn" id="devInfoBtn">ℹ️</button>
 
+<div class="dev-modal-overlay" id="devModalOverlay">
+  <div class="dev-modal">
+    <h2>開発者情報</h2>
+    <p>
+      <span>アイスボンバー</span><br>
+      2026/8/27<br>
+      Version: 1.0.0<br>
+      studio: 自宅<br>
+      supported by: NTTData<br>
+      
+      Developed by: <br>
+      リーダー:嘉山馨菜<br>
+      プログラムリーダー:安西晴哉<br>
+
+      メンバー:金澤希一郎 野谷麻友 江隅聡汰
+    </p>
+    <button class="btn btn-secondary" id="devModalClose" style="width: 100%;">閉じる</button>
+  </div>
+</div>
 <script>
 /* =========================================================
    ステート管理（ホストが更新し、PeerJSで参加者へ同期）
@@ -1905,6 +2002,23 @@ document.getElementById('app').appendChild(screenTitle());
 updateChrome();
 document.getElementById('app').querySelector('#start') &&
   (document.getElementById('app').querySelector('#start').onclick = ()=>go('nickname'));
+const devInfoBtn = document.getElementById('devInfoBtn');
+const devModalOverlay = document.getElementById('devModalOverlay');
+const devModalClose = document.getElementById('devModalClose');
+
+devInfoBtn.addEventListener('click', () => {
+  devModalOverlay.classList.add('show');
+});
+
+devModalClose.addEventListener('click', () => {
+  devModalOverlay.classList.remove('show');
+});
+
+devModalOverlay.addEventListener('click', (e) => {
+  if(e.target === devModalOverlay) {
+    devModalOverlay.classList.remove('show');
+  }
+});
 </script>
 </body>
 </html>
