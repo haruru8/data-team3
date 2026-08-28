@@ -445,6 +445,12 @@ correctSound.preload = 'auto'; wrongSound.preload = 'auto'; timerBgm.preload = '
 hintSound.preload = 'auto'; clearSound.preload = 'auto'; explosionSound.preload = 'auto';
 timerBgm.loop = true;
 timerBgm.volume = 0.45;
+explosionSound.volume = 0.5;
+
+let timerAudioContext = null;
+let timerBgmBuffer = null;
+let timerBgmSource = null;
+let timerBgmStartPromise = null;
 
 const QUESTIONS = [
   () => `${state.questioner}さんの好きな映画・ドラマのジャンルを${state.answererOrder.length}つ答えよ！`,
@@ -499,12 +505,48 @@ function updateChrome(){
 }
 
 function stopQuizBgm(){
+  if(timerBgmSource){
+    try{ timerBgmSource.stop(); } catch(error){}
+    timerBgmSource.disconnect();
+    timerBgmSource = null;
+  }
   timerBgm.pause();
   timerBgm.currentTime = 0;
 }
+function startQuizBgm(){
+  if(timerBgmSource || timerBgmStartPromise || !timerBgm.paused) return;
+  timerBgmStartPromise = (async()=>{
+    try{
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if(!AudioContextClass) throw new Error('Web Audio API is not supported');
+      if(!timerAudioContext) timerAudioContext = new AudioContextClass();
+      if(!timerBgmBuffer){
+        const response = await fetch('./sounds/Timer.mp3');
+        if(!response.ok) throw new Error('Timer BGM could not be loaded');
+        timerBgmBuffer = await timerAudioContext.decodeAudioData(await response.arrayBuffer());
+      }
+      if(state.screen !== 'quizActive') return;
+      await timerAudioContext.resume();
+      if(state.screen !== 'quizActive') return;
+      const source = timerAudioContext.createBufferSource();
+      const gain = timerAudioContext.createGain();
+      source.buffer = timerBgmBuffer;
+      source.loop = true;
+      gain.gain.value = 0.45;
+      source.connect(gain).connect(timerAudioContext.destination);
+      source.onended = ()=>{ if(timerBgmSource === source) timerBgmSource = null; };
+      timerBgmSource = source;
+      source.start();
+    } catch(error){
+      if(state.screen === 'quizActive') timerBgm.play().catch(()=>{});
+    } finally {
+      timerBgmStartPromise = null;
+    }
+  })();
+}
 function updateQuizBgm(){
   if(state.screen === 'quizActive'){
-    if(timerBgm.paused) timerBgm.play().catch(()=>{});
+    startQuizBgm();
   } else {
     stopQuizBgm();
   }
