@@ -367,6 +367,7 @@ textarea {
 }
 
 footer.note { text-align: center; font-size: 11px; color: var(--text-dim); margin-top: 22px; font-family: var(--font-mono); opacity: .6; }
+footer.note a { color: inherit; }
 .demo-note { font-size: 11px; color: var(--text-dim); text-align: center; margin: 10px 0 0; font-family: var(--font-mono); line-height: 1.6; font-weight: 700; }
 
 .icon { display: inline-block; width: 1.2em; height: 1.2em; vertical-align: middle; }
@@ -436,7 +437,14 @@ const state = {
 
 let peer = null; let hostConnection = null; let guestConnections = []; let myPeerId = ''; let connectionStatus = 'idle';
 const correctSound = new Audio('./sounds/correct.mp3'); const wrongSound = new Audio('./sounds/wrong.mp3');
-correctSound.preload = 'auto'; wrongSound.preload = 'auto';
+const timerBgm = new Audio('./sounds/Timer.mp3');
+const hintSound = new Audio('./sounds/hinto.mp3');
+const clearSound = new Audio('./sounds/kuria.mp3');
+const explosionSound = new Audio('./sounds/爆発2.mp3');
+correctSound.preload = 'auto'; wrongSound.preload = 'auto'; timerBgm.preload = 'auto';
+hintSound.preload = 'auto'; clearSound.preload = 'auto'; explosionSound.preload = 'auto';
+timerBgm.loop = true;
+timerBgm.volume = 0.45;
 
 const QUESTIONS = [
   () => `${state.questioner}さんの好きな映画・ドラマのジャンルを${state.answererOrder.length}つ答えよ！`,
@@ -487,6 +495,19 @@ function updateChrome(){
   document.body.classList.toggle('phase-ice', phase==='ice'); document.body.classList.toggle('phase-hot', phase==='hot');
   const snow = document.getElementById('snowfield'); if(snow) snow.style.display = phase==='ice' ? 'block' : 'none';
   const fill = document.getElementById('fuseFill'); if(fill) fill.style.width = (SCREEN_PROGRESS[state.screen] || 0) + '%';
+  updateQuizBgm();
+}
+
+function stopQuizBgm(){
+  timerBgm.pause();
+  timerBgm.currentTime = 0;
+}
+function updateQuizBgm(){
+  if(state.screen === 'quizActive'){
+    if(timerBgm.paused) timerBgm.play().catch(()=>{});
+  } else {
+    stopQuizBgm();
+  }
 }
 
 function render(skipAnimation = false){
@@ -547,6 +568,7 @@ function destroyPeer(nextStatus = 'idle'){
   peer = null; hostConnection = null; guestConnections = []; myPeerId = '';
 }
 function resetRoomSession(nextStatus = 'idle'){
+  stopQuizBgm();
   destroyPeer(nextStatus);
   state.roomCode = '';
   state.joinCode = '';
@@ -658,6 +680,10 @@ function screenTitle(){
         ${SVGS.bombLarge}
         <button class="btn btn-primary" id="start">はじめる</button>
       </div>
+      <footer class="note">
+        音源：<a href="https://otologic.jp/" target="_blank" rel="noopener noreferrer">OtoLogic</a>
+        （<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）
+      </footer>
     </div>
   `);
   node.querySelector('#start').onclick = ()=>go('nickname');
@@ -1117,7 +1143,12 @@ function screenQuizActive(){
           <p class="sub" style="margin-bottom:14px;">思いついたら口頭で答えてね</p>
           ${state.hintUsed ? `<div class="hint-box">ヒントをリクエスト中…</div>` : `<button class="btn btn-secondary" id="hintBtn"><span class="icon">${SVGS.bulb}</span> ヒントをもらう</button>`}
         </div>`;
-      const hb = wrap.querySelector('#hintBtn'); if(hb) hb.onclick = ()=>requestAction('HINT');
+      const hb = wrap.querySelector('#hintBtn');
+      if(hb) hb.onclick = ()=>{
+        hintSound.currentTime = 0;
+        hintSound.play().catch(()=>{});
+        requestAction('HINT');
+      };
     } else {
       wrap.innerHTML = `<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">${answerer}さんが回答中です…</div>`;
     }
@@ -1157,6 +1188,9 @@ function handleCorrectAnswer(){
 }
 
 function showExplosion(callback){
+  stopQuizBgm();
+  explosionSound.currentTime = 0;
+  explosionSound.play().catch(()=>{});
   const overlay = document.createElement('div'); overlay.className = 'explosion-overlay';
   overlay.innerHTML = `<div class="boom-text"><span class="icon-lg">${SVGS.explosion}</span><br>ドッカーン!!</div>`;
   document.body.appendChild(overlay); const app = document.getElementById('app'); app.classList.add('shake');
@@ -1164,6 +1198,9 @@ function showExplosion(callback){
 }
 
 function showIceBreak(callback){
+  stopQuizBgm();
+  clearSound.currentTime = 0;
+  clearSound.play().catch(()=>{});
   const overlay = document.createElement('div'); overlay.className = 'icebreak-overlay';
   overlay.innerHTML = `<div class="ice-text"><span class="icon-lg">${SVGS.ice}</span><br>アイスブレイク成功!!</div>`;
   document.body.appendChild(overlay); const app = document.getElementById('app'); app.classList.add('shake');
