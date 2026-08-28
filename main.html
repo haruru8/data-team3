@@ -5,774 +5,378 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>アイスボンバー</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
-:root{
-  --bg:#0a0a0d;
-  --panel:#1a1b20;
-  --panel-2:#232429;
-  --line:#3c3d44;
-  --text:#ffffff;
-  --text-dim:#9a9aa4;
-  --fuse-1:#ff3b3b;
-  --fuse-2:#c40018;
-  --gold:#ffd400;
-  --gold-2:#ffa800;
-  --ok:#39ff8a;
-  --bad:#ff1b2e;
-  --radius:16px;
-  --font-display:'M PLUS Rounded 1c', sans-serif;
-  --font-body:'Zen Kaku Gothic New', sans-serif;
-  --font-mono:'JetBrains Mono', monospace;
-}
-*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-html,body{margin:0;padding:0;}
-body{
-  background:
-    repeating-linear-gradient(135deg, rgba(255,212,0,0.035) 0 26px, transparent 26px 52px),
-    radial-gradient(1100px 650px at 20% -10%, rgba(255,59,59,0.16), transparent 55%),
-    radial-gradient(900px 600px at 100% 0%, rgba(255,212,0,0.08), transparent 50%),
-    var(--bg);
-  color:var(--text);
-  font-family:var(--font-body);
-  min-height:100vh;
-  display:flex;
-  align-items:flex-start;
-  justify-content:center;
-  padding:36px 14px 60px;
-}
-#app{
-  width:100%;
-  max-width:460px;
-  position:relative;
-  z-index:1;
-}
-.screen{
-  animation:fadeUp .38s ease;
-}
-@keyframes fadeUp{
-  from{opacity:0; transform:translateY(10px);}
-  to{opacity:1; transform:translateY(0);}
-}
-@media (prefers-reduced-motion: reduce){
-  .screen{animation:none;}
+:root {
+  /* カジュアル＆ポップなカラーパレット */
+  --bg-ice: #d4f2ff;
+  --bg-hot: #ffe8d4;
+  --primary: #ff6b6b;
+  --secondary: #00c3ff;
+  --yellow: #ffcf33;
+  --green: #4ade80;
+  --text-main: #2c3e50;
+  --text-dim: #70869c;
+  
+  --card-bg: rgba(255, 255, 255, 0.7);
+  --card-border: rgba(255, 255, 255, 0.95);
+  
+  /* 元の変数名へのマッピング */
+  --fuse-1: var(--primary);
+  --fuse-2: #d94545;
+  --gold: var(--yellow);
+  --gold-2: #d9ab1a;
+  --ok: var(--green);
+  --bad: var(--primary);
+  
+  --radius: 16px; 
+  --font-display: 'M PLUS Rounded 1c', sans-serif;
+  --font-body: 'Zen Kaku Gothic New', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
-/* ---------- shared bits ---------- */
-.eyebrow{
-  font-family:var(--font-mono);
-  font-size:11px;
-  letter-spacing:.14em;
-  color:var(--fuse-1);
-  text-transform:uppercase;
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-bottom:10px;
-}
-.eyebrow::before{
-  content:"";
-  width:14px;height:2px;
-  background:linear-gradient(90deg,var(--fuse-1),var(--fuse-2));
-  border-radius:2px;
-}
-h1.page-title{
-  font-family:var(--font-display);
-  font-weight:900;
-  font-size:26px;
-  line-height:1.3;
-  margin:0 0 4px;
-  letter-spacing:.01em;
-}
-p.sub{
-  color:var(--text-dim);
-  font-size:13.5px;
-  line-height:1.7;
-  margin:0 0 22px;
-}
-.card{
-  background:var(--panel);
-  border:2.5px solid #000;
-  border-radius:var(--radius);
-  padding:22px 20px;
-  margin-bottom:14px;
-  box-shadow:5px 5px 0 rgba(0,0,0,.85);
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 36px 14px 60px;
+  color: var(--text-main);
+  /* ドット柄の背景 */
+  background-color: var(--bg-ice);
+  background-image: radial-gradient(rgba(255,255,255,0.7) 20%, transparent 20%);
+  background-size: 24px 24px;
+  background-attachment: fixed;
+  transition: background-color 0.8s ease;
 }
 
-/* ---- 警戒テープ / サイレン / スポットライト（ネプリーグ演出） ---- */
-.hazard-tape{
-  height:11px;
-  background:repeating-linear-gradient(135deg, var(--gold) 0 14px, #111 14px 28px);
-  border:1.5px solid #000;
-  border-radius:3px;
-  margin:14px 0;
-}
-.sunburst-wrap{position:relative; overflow:hidden; border-radius:20px;}
-.sunburst-wrap::before{
-  content:"";
-  position:absolute; inset:-70%;
-  background:repeating-conic-gradient(from 0deg, rgba(255,212,0,0.16) 0deg 9deg, transparent 9deg 18deg);
-  animation:spinBurst 55s linear infinite;
-  z-index:0;
-}
-.sunburst-wrap > *{position:relative; z-index:1;}
-@keyframes spinBurst{to{transform:rotate(360deg);}}
-.eyebrow.alarm::before{
-  content:"";
-  width:14px; height:2px; border-radius:2px;
-  background:var(--fuse-1);
-  animation:none;
-}
-.eyebrow.alarm .siren-dot{
-  width:9px; height:9px; border-radius:50%;
-  background:var(--fuse-1);
-  display:inline-block;
-  box-shadow:0 0 9px 3px rgba(255,59,59,.75);
-  animation:sirenBlink .6s steps(1) infinite;
-  margin-right:2px;
-}
-@keyframes sirenBlink{50%{background:var(--gold); box-shadow:0 0 9px 3px rgba(255,212,0,.75);}}
-.tv-title{
-  font-family:var(--font-display);
-  font-weight:900;
-  color:#fff;
-  -webkit-text-stroke:2px #000;
-  text-shadow:3px 3px 0 var(--fuse-1), 6px 6px 0 rgba(0,0,0,.5);
-  letter-spacing:.01em;
-}
-.explosion-overlay{
-  position:fixed; inset:0; z-index:999;
-  background:radial-gradient(circle, rgba(255,190,0,.97) 0%, rgba(255,27,46,.97) 42%, rgba(5,5,5,.97) 100%);
-  display:flex; align-items:center; justify-content:center;
-  animation:flashIn 1.5s ease forwards;
-}
-.boom-text{
-  font-family:var(--font-display); font-weight:900; font-size:15vw; max-font-size:52px;
-  color:#fff; -webkit-text-stroke:3px #000;
-  text-shadow:5px 5px 0 #000;
-  animation:boomPop .5s cubic-bezier(.34,1.8,.64,1);
-  text-align:center;
-}
-@keyframes boomPop{0%{transform:scale(.2) rotate(-8deg); opacity:0;} 60%{transform:scale(1.18) rotate(3deg); opacity:1;} 100%{transform:scale(1) rotate(0deg);}}
-@keyframes flashIn{0%{opacity:0;} 15%{opacity:1;} 85%{opacity:1;} 100%{opacity:0;}}
-#app.shake{animation:shakeApp .5s;}
-@keyframes shakeApp{0%,100%{transform:translateX(0);} 20%{transform:translateX(-7px);} 40%{transform:translateX(7px);} 60%{transform:translateX(-5px);} 80%{transform:translateX(5px);}}
-@media (prefers-reduced-motion: reduce){
-  .sunburst-wrap::before, .boom-text, .explosion-overlay, #app.shake, .eyebrow.alarm .siren-dot{animation:none;}
+body.phase-ice { background-color: var(--bg-ice); }
+body.phase-hot { background-color: var(--bg-hot); }
+
+#app {
+  width: 100%;
+  max-width: 460px;
+  position: relative;
+  z-index: 1;
 }
 
-/* =========================================================
-   氷⇔警報：フェーズ別テーマ（ロビー系は氷、クイズ本番は警報）
-========================================================= */
-:root{
-  --ice-bg-1:#cfeff7;
-  --ice-bg-2:#bfe7f2;
-  --ice-panel:#16303e;
-  --ice-panel-2:#1c3a4a;
-  --ice-line:#2f5468;
-  --ice-accent:#7fe0ff;
-  --ice-accent-2:#c9f3ff;
-  --ice-text:#173746;
-  --ice-text-dim:#496b79;
+.screen { animation: fadeUp .38s ease; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-body.phase-ice{
-  background:
-    radial-gradient(1000px 620px at 15% -10%, rgba(255,255,255,.4), transparent 55%),
-    var(--ice-bg-1);
-  transition:background .6s ease;
+@media (prefers-reduced-motion: reduce) { .screen { animation: none; } }
+
+/* ---------- 共通テキスト ---------- */
+.eyebrow {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em;
+  color: var(--secondary); text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  font-weight: 800;
 }
-body.phase-ice .screen > .page-title{
-  color:var(--ice-text);
+.eyebrow::before {
+  content: ""; width: 14px; height: 3px; background: var(--secondary); border-radius: 2px;
 }
-body.phase-ice .screen > p.sub{
-  color:var(--ice-text-dim);
+.eyebrow.alarm { color: var(--primary); }
+.eyebrow.alarm::before { background: var(--primary); animation: none; }
+.eyebrow.alarm .siren-dot {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--primary);
+  display: inline-block; box-shadow: 0 0 9px 3px rgba(255,107,107,.75);
+  animation: sirenBlink .6s steps(1) infinite; margin-right: 2px;
 }
-body.phase-ice .screen > .eyebrow{
-  color:#16718e;
+@keyframes sirenBlink { 50% { background: var(--gold); box-shadow: 0 0 9px 3px rgba(255,207,51,.75); } }
+
+h1.page-title {
+  font-family: var(--font-display); font-weight: 900; font-size: 26px;
+  line-height: 1.3; margin: 0 0 4px; letter-spacing: .01em; color: var(--text-main);
 }
-body.phase-hot{
-  background:
-    repeating-linear-gradient(135deg, rgba(255,212,0,0.035) 0 26px, transparent 26px 52px),
-    radial-gradient(1100px 650px at 20% -10%, rgba(255,59,59,0.16), transparent 55%),
-    radial-gradient(900px 600px at 100% 0%, rgba(255,212,0,0.08), transparent 50%),
-    var(--bg);
-  transition:background .6s ease;
-}
-body.phase-ice .card,
-body.phase-ice .choice-card,
-body.phase-ice .qcard{
-  background:var(--ice-panel);
-  border-color:#000;
-  box-shadow:5px 5px 0 rgba(0,20,30,.7);
-}
-body.phase-ice .eyebrow{color:var(--ice-accent);}
-body.phase-ice .eyebrow::before{background:linear-gradient(90deg,var(--ice-accent),var(--ice-accent-2));}
-body.phase-ice .tv-title{
-  text-shadow:3px 3px 0 var(--ice-accent), 6px 6px 0 rgba(0,20,30,.5);
-}
-body.phase-ice .btn-primary{
-  background:linear-gradient(180deg,var(--ice-accent-2),var(--ice-accent));
-  color:#04222f;
-}
-body.phase-ice .btn-secondary:hover{border-color:var(--ice-accent);}
-body.phase-ice .choice-card:hover{border-color:var(--ice-accent);}
-body.phase-ice .code-display{
-  border-color:var(--ice-accent);
-  box-shadow:0 0 0 3px rgba(127,224,255,.18), 4px 4px 0 rgba(0,0,0,.7);
-}
-body.phase-ice input[type=text], body.phase-ice input[type=number]{
-  border-color:var(--ice-line);
-}
-body.phase-ice input[type=text]:focus, body.phase-ice input[type=number]:focus{
-  border-color:var(--ice-accent);
-}
-body.phase-ice .hazard-tape{
-  background:repeating-linear-gradient(135deg, var(--ice-accent) 0 14px, #0a1a22 14px 28px);
-}
-body.phase-ice .stamp.clear{color:var(--ice-accent); text-shadow:3px 3px 0 #000;}
-body.phase-ice .sunburst-wrap::before{
-  background:repeating-conic-gradient(from 0deg, rgba(127,224,255,0.16) 0deg 9deg, transparent 9deg 18deg);
+p.sub { color: var(--text-dim); font-size: 13.5px; line-height: 1.7; margin: 0 0 22px; font-weight: 700; }
+
+/* ---------- カード・枠 ---------- */
+.card {
+  background: var(--card-bg); border: 2.5px solid var(--card-border);
+  border-radius: var(--radius); padding: 22px 20px; margin-bottom: 14px;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  box-shadow: 4px 4px 0 rgba(0, 100, 200, 0.1);
 }
 
-/* 霜つき爆弾マーク */
-.frost-bomb{
-  position:relative; display:inline-block; font-size:48px;
-  filter:drop-shadow(0 0 10px rgba(127,224,255,.35));
-}
-.frost-bomb::after{
-  content:"❄️";
-  position:absolute; right:-6px; bottom:-4px;
-  font-size:20px;
+.hazard-tape {
+  height: 12px; background: repeating-linear-gradient(135deg, var(--gold) 0 14px, #fff 14px 28px);
+  border: 2px solid var(--card-border); border-radius: 4px;
+  margin: 14px 0; box-shadow: 2px 2px 0 rgba(0,0,0,0.05);
 }
 
-/* 雪の粒子（氷フェーズのみ） */
-.snowfield{position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0;}
-.snowfield span{
-  position:absolute; top:-5%; color:rgba(74,157,184,.58); font-size:12px;
-  animation:snowFall linear infinite;
+/* タイトルロゴ演出 */
+.title-logo {
+  font-family: var(--font-display); font-size: 40px; font-weight: 900; color: var(--secondary);
+  line-height: 1.1; margin-bottom: 24px; letter-spacing: 2px;
+  text-shadow: -3px -3px 0 #fff, 3px -3px 0 #fff, -3px 3px 0 #fff, 3px 3px 0 #fff, 0px 8px 0 #fff;
+  transform: rotate(-3deg);
 }
-@keyframes snowFall{
-  to{ transform:translateY(115vh) translateX(var(--drift,0px)); }
-}
-@media (prefers-reduced-motion: reduce){ .snowfield{display:none;} }
+.title-logo span { display: block; font-size: 50px; color: var(--gold); }
 
-/* 導火線プログレスバー（常時表示） */
-#fuseBar{
-  position:fixed; top:0; left:0; right:0; height:5px; z-index:500;
-  background:rgba(255,255,255,.06);
+.frost-bomb {
+  position: relative; display: inline-block; width: 130px; height: 130px; margin-bottom: 10px;
+  animation: float 3s ease-in-out infinite;
 }
-#fuseBar .fill{
-  height:100%; width:0%;
-  background:linear-gradient(90deg, var(--ice-accent), var(--gold), var(--fuse-1));
-  transition:width .5s ease;
-  position:relative;
-}
-#fuseBar .fill::after{
-  content:"🔥"; position:absolute; right:-9px; top:-9px; font-size:15px;
-  filter:drop-shadow(0 0 4px rgba(255,138,0,.8));
-}
+@keyframes float { 0%, 100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-8px) rotate(4deg); } }
 
-/* 点火フラッシュ（氷フェーズ→警報フェーズへ切り替わる瞬間） */
-.ignite-overlay{
-  position:fixed; inset:0; z-index:999;
-  background:radial-gradient(circle, rgba(255,180,60,.9) 0%, rgba(196,0,24,.55) 55%, rgba(5,5,5,0) 100%);
-  display:flex; align-items:center; justify-content:center;
-  animation:igniteFlash 1.5s ease forwards;
-}
-.ignite-text{
-  font-family:var(--font-display); font-weight:900; font-size:8vw;
-  color:#fff; -webkit-text-stroke:2px #000; text-shadow:3px 3px 0 #000;
-}
-@keyframes igniteFlash{0%{opacity:0;} 25%{opacity:1;} 100%{opacity:0;}}
-@media (prefers-reduced-motion: reduce){ .ignite-overlay{animation:none; opacity:0;} }
-label.field-label{
-  display:block;
-  font-size:12px;
-  color:var(--text-dim);
-  margin:0 0 8px;
-  font-weight:700;
-}
-input[type=text], input[type=number]{
-  width:100%;
-  background:var(--bg);
-  border:1.5px solid var(--line);
-  border-radius:12px;
-  padding:13px 14px;
-  color:var(--text);
-  font-family:var(--font-body);
-  font-size:15px;
-  outline:none;
-  transition:border-color .15s;
-}
-input[type=text]:focus, input[type=number]:focus{
-  border-color:var(--fuse-1);
-}
-.field{margin-bottom:16px;}
-.btn{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  width:100%;
-  padding:14px 18px;
-  border-radius:14px;
-  border:none;
-  font-family:var(--font-display);
-  font-weight:800;
-  font-size:15px;
-  cursor:pointer;
-  transition:transform .12s ease, filter .12s ease, opacity .12s;
-  letter-spacing:.01em;
-}
-.btn:active{transform:scale(0.97);}
-.btn-primary{
-  background:linear-gradient(180deg,var(--gold),var(--gold-2));
-  color:#161200;
-  border:2.5px solid #000;
-  box-shadow:4px 4px 0 #000;
-}
-.btn-primary:hover{filter:brightness(1.04);}
-.btn-primary:active{transform:translate(2px,2px); box-shadow:2px 2px 0 #000;}
-.btn-secondary{
-  background:var(--panel-2);
-  border:2.5px solid #000;
-  color:var(--text);
-  box-shadow:4px 4px 0 rgba(0,0,0,.6);
-}
-.btn-secondary:hover{border-color:var(--fuse-1);}
-.btn-secondary:active{transform:translate(2px,2px); box-shadow:2px 2px 0 rgba(0,0,0,.6);}
-.btn-ghost{
-  background:transparent;
-  color:var(--text-dim);
-  border:1.5px dashed var(--line);
-}
-.btn:disabled{opacity:.35; cursor:not-allowed; transform:none;}
-.btn-row{display:flex; gap:10px;}
-.btn-row .btn{width:auto; flex:1;}
-.choice-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:6px;}
-.choice-card{
-  background:var(--panel);
-  border:2.5px solid #000;
-  border-radius:16px;
-  padding:20px 14px;
-  text-align:center;
-  cursor:pointer;
-  transition:.15s;
-  box-shadow:4px 4px 0 rgba(0,0,0,.75);
-}
-.choice-card:hover{border-color:var(--fuse-1); transform:translate(-1px,-3px); box-shadow:5px 7px 0 rgba(0,0,0,.75);}
-.choice-card .ic{font-size:26px; display:block; margin-bottom:8px;}
-.choice-card .lbl{font-family:var(--font-display); font-weight:800; font-size:14px;}
-.back-link{
-  background:none; border:none; color:var(--text-dim);
-  font-family:var(--font-mono); font-size:12px; cursor:pointer;
-  padding:6px 0; margin-bottom:14px; display:inline-flex; align-items:center; gap:5px;
-}
-.back-link:hover{color:var(--fuse-1);}
-.chip{
-  display:inline-flex; align-items:center; gap:6px;
-  background:var(--panel-2); border:1px solid var(--line);
-  border-radius:999px; padding:5px 11px; font-size:11.5px; color:var(--text-dim);
-  font-family:var(--font-mono);
-}
-.time-strip{
-  display:flex; gap:10px; margin-bottom:18px;
-}
-.time-strip .box{
-  flex:1; background:var(--panel-2); border:1px solid var(--line);
-  border-radius:12px; padding:11px 12px;
-}
-.time-strip .box .n{
-  font-family:var(--font-mono); font-weight:700; font-size:18px; color:var(--gold);
-}
-.time-strip .box .l{font-size:10.5px; color:var(--text-dim); margin-top:2px;}
+/* 雪の粒子 */
+.snowfield { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+.snow-crystal { position: absolute; top: -5%; width: 18px; height: 18px; animation: snowFall linear infinite; opacity: 0.6; }
+@keyframes snowFall { to { transform: translateY(115vh) translateX(var(--drift,0px)) rotate(360deg); } }
 
-/* room code */
-.code-display{
-  font-family:var(--font-mono);
-  font-size:32px;
-  font-weight:800;
-  letter-spacing:.12em;
-  color:var(--gold);
-  text-align:center;
-  padding:18px 0;
-  background:#000;
-  border-radius:14px;
-  border:2.5px solid var(--fuse-1);
-  box-shadow:0 0 0 3px rgba(255,59,59,.18), 4px 4px 0 rgba(0,0,0,.7);
-  margin-bottom:6px;
+/* 導火線プログレスバー */
+#fuseBar { position: fixed; top: 0; left: 0; right: 0; height: 8px; z-index: 500; background: rgba(255,255,255,.5); }
+#fuseBar .fill { height: 100%; width: 0%; background: var(--gold); transition: width .5s ease; position: relative; border-radius: 0 4px 4px 0; }
+.spark-head { position: absolute; right: -12px; top: -8px; width: 24px; height: 24px; }
+
+/* 点火フラッシュ */
+.ignite-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: radial-gradient(circle, rgba(255,207,51,.85) 0%, rgba(255,107,107,.7) 55%, rgba(255,255,255,0) 100%);
+  display: flex; align-items: center; justify-content: center;
+  animation: igniteFlash 1.5s cubic-bezier(0.1, 1.5, 0.5, 1) forwards;
+}
+.ignite-text {
+  font-family: var(--font-display); font-weight: 900; font-size: 8vw;
+  color: #fff; text-shadow: 0 6px 12px rgba(0,0,0,0.2);
+  display: flex; align-items: center; gap: 10px;
+}
+@keyframes igniteFlash { 0% { opacity: 0; transform:scale(0.8); } 20% { opacity: 1; transform:scale(1.1); } 80% { opacity: 1; transform:scale(1); } 100% { opacity: 0; } }
+
+label.field-label { display: block; font-size: 12px; color: var(--text-dim); margin: 0 0 8px; font-weight: 800; }
+input[type=text], input[type=number] {
+  width: 100%; background: rgba(255,255,255,0.9); border: 2.5px solid var(--card-border);
+  border-radius: 12px; padding: 13px 14px; color: var(--text-main); font-family: var(--font-body);
+  font-size: 15px; outline: none; transition: border-color .15s; font-weight: 700;
+}
+input[type=text]:focus, input[type=number]:focus { border-color: var(--secondary); box-shadow: 0 0 0 3px rgba(0,195,255,0.15); }
+.field { margin-bottom: 16px; }
+
+/* ---------- オリジナルに忠実なボタン ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 14px 18px;
+  border-radius: 14px; border: 2.5px solid var(--card-border);
+  font-family: var(--font-display); font-weight: 800; font-size: 15px;
+  cursor: pointer; transition: transform .12s ease, filter .12s ease, opacity .12s; letter-spacing: .01em;
+}
+.btn-primary { background: var(--primary); color: white; box-shadow: 4px 4px 0 rgba(217, 69, 69, 0.4); }
+.btn-primary:hover { filter: brightness(1.04); }
+.btn-primary:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 rgba(217, 69, 69, 0.4); }
+
+.btn-secondary { background: #fff; color: var(--text-main); box-shadow: 4px 4px 0 rgba(0, 100, 200, 0.1); }
+.btn-secondary:hover { border-color: var(--secondary); }
+.btn-secondary:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 rgba(0, 100, 200, 0.1); }
+
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-row { display: flex; gap: 10px; margin-top: 14px; }
+.btn-row .btn { width: auto; flex: 1; }
+
+.choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+.choice-card {
+  background: var(--card-bg); border: 2.5px solid var(--card-border); border-radius: 16px;
+  padding: 20px 14px; text-align: center; cursor: pointer; transition: .15s;
+  box-shadow: 4px 4px 0 rgba(0, 100, 200, 0.1); backdrop-filter: blur(12px);
+}
+.choice-card:hover { border-color: var(--secondary); transform: translate(-1px,-3px); box-shadow: 5px 7px 0 rgba(0, 195, 255, 0.2); }
+.choice-card .ic { display: flex; justify-content: center; margin-bottom: 8px; width: 32px; height: 32px; margin-inline: auto; }
+.choice-card .lbl { font-family: var(--font-display); font-weight: 800; font-size: 14px; }
+
+.back-link {
+  background: none; border: none; color: var(--text-dim); font-family: var(--font-mono); font-size: 12px; cursor: pointer;
+  padding: 6px 0; margin-bottom: 14px; display: inline-flex; align-items: center; gap: 5px; font-weight: 700;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; background: #fff; border-radius: 999px; padding: 5px 11px;
+  font-size: 11.5px; color: var(--text-main); font-family: var(--font-mono); font-weight: 800; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-/* participants list */
-.plist{list-style:none; margin:0; padding:0;}
-.plist li{
-  display:flex; align-items:center; gap:10px;
-  padding:10px 4px; border-bottom:1px solid var(--line);
-  font-size:14px;
-}
-.plist li:last-child{border-bottom:none;}
-.avatar{
-  width:30px;height:30px;border-radius:50%;
-  background:linear-gradient(135deg,var(--fuse-1),var(--fuse-2));
-  display:flex; align-items:center; justify-content:center;
-  font-family:var(--font-display); font-weight:800; font-size:13px; color:#1a1310;
-  flex-shrink:0;
-}
-.host-tag{
-  margin-left:auto; font-size:10px; color:var(--gold); font-family:var(--font-mono);
-  border:1px solid var(--gold); border-radius:6px; padding:2px 6px;
+.time-strip { display: flex; gap: 10px; margin-bottom: 18px; }
+.time-strip .box { flex: 1; background: var(--card-bg); border: 2.5px solid var(--card-border); border-radius: 12px; padding: 11px 12px; text-align: center; }
+.time-strip .box .n { font-family: var(--font-mono); font-weight: 700; font-size: 18px; color: var(--secondary); }
+.time-strip .box .l { font-size: 10.5px; color: var(--text-dim); margin-top: 2px; font-weight: 800; }
+
+.code-display {
+  font-family: var(--font-mono); font-size: 32px; font-weight: 800; letter-spacing: .12em;
+  color: var(--secondary); text-align: center; padding: 18px 0;
+  background: #fff; border-radius: 14px; border: 2.5px solid var(--card-border);
+  box-shadow: inset 0 4px 8px rgba(0,0,0,0.05); margin-bottom: 6px;
 }
 
-/* circular table */
-.table-wrap{
-  position:relative;
-  width:280px; height:280px;
-  margin:10px auto 22px;
+.plist { list-style: none; margin: 0; padding: 0; }
+.plist li { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 2px dashed rgba(0,0,0,0.05); font-size: 14px; font-weight: 700; }
+.plist li:last-child { border-bottom: none; }
+.avatar {
+  width: 30px; height: 30px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 800; font-size: 13px; color: var(--secondary);
+  flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
-.table-center{
-  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-  width:150px; height:150px; border-radius:50%;
-  background:radial-gradient(circle at 35% 30%, #201417, #050505);
-  border:3px solid var(--gold);
-  box-shadow:0 0 0 5px rgba(0,0,0,.6), 0 0 22px rgba(255,212,0,.25);
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:4px;
+.host-tag { margin-left: auto; font-size: 10px; color: #fff; font-family: var(--font-mono); background: var(--gold); border-radius: 6px; padding: 2px 6px; font-weight: 800; }
+
+/* ---------- 舞台・レーン ---------- */
+.podium-stage {
+  position: relative; background: rgba(255, 255, 255, 0.5); border: 2.5px solid var(--card-border);
+  border-radius: 16px; box-shadow: 4px 4px 0 rgba(0, 100, 200, 0.1);
+  padding: 14px 10px 0; overflow: hidden; margin-bottom: 14px;
 }
-.table-center .timer-num{
-  font-family:var(--font-mono); font-weight:800; font-size:34px; color:var(--gold);
+.studio-clock { width: 96px; margin: 0 auto 10px; background: #fff; border-radius: 10px; text-align: center; padding: 6px 0 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+.studio-clock .num { font-family: var(--font-mono); font-weight: 800; font-size: 26px; color: var(--secondary); line-height: 1; }
+.studio-clock.danger .num { color: var(--primary); animation: pulseBeat 0.5s infinite alternate; }
+@keyframes pulseBeat { from{transform:scale(1);} to{transform:scale(1.15);} }
+.studio-clock .lbl { font-size: 8.5px; color: var(--text-dim); font-family: var(--font-mono); letter-spacing: .1em; font-weight: 800;}
+
+.podium-row { display: flex; align-items: flex-end; gap: 8px; padding-bottom: 0; }
+.podium { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+
+/* スタンドの横並び配置など */
+.stand {
+  width: 100%; background: #fff; border: 2.5px solid var(--card-border); border-bottom: 5px solid #e2e8f0;
+  border-radius: 6px 6px 2px 2px; padding: 7px 3px 9px; text-align: center;
 }
-.table-center.danger{border-color:var(--fuse-1); animation:sirenRing .5s infinite alternate;}
-.table-center.danger .timer-num{color:var(--fuse-1); animation:pulse .5s infinite alternate;}
-@keyframes pulse{from{transform:scale(1);} to{transform:scale(1.12);}}
-@keyframes sirenRing{from{box-shadow:0 0 0 5px rgba(0,0,0,.6), 0 0 26px rgba(255,59,59,.55);} to{box-shadow:0 0 0 5px rgba(0,0,0,.6), 0 0 8px rgba(255,59,59,.2);}}
-.table-center .timer-lbl{font-size:10px; color:var(--text-dim); font-family:var(--font-mono);}
-.seat{
-  position:absolute;
-  width:58px; height:58px;
-  transform:translate(-50%,-50%);
-  display:flex; flex-direction:column; align-items:center; gap:4px;
+.podium.active .stand { border-bottom-color: var(--secondary); box-shadow: 0 0 12px rgba(0, 195, 255, 0.45); }
+.podium.done .stand { border-bottom-color: var(--green); }
+.podium.exploded .stand { background: #f1f5f9; border-bottom-color: #cbd5e1; }
+.stand-name { font-family: var(--font-display); font-weight: 800; font-size: 10.5px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.podium.exploded .stand-name { color: #94a3b8; text-decoration: line-through; }
+.podium-floor { height: 8px; margin-top: 8px; background: repeating-linear-gradient(90deg, #cbd5e1 0 10px, rgba(0,0,0,0.05) 10px 20px); }
+
+/* 自己紹介用 溶けるアニメーション */
+@keyframes iceMelt {
+  0% { transform: scale(1) translateY(0); opacity: 1; }
+  100% { transform: scale(0.3) translateY(20px); opacity: 0; }
 }
-.seat .av{
-  width:44px;height:44px;border-radius:50%;
-  background:var(--panel-2); border:2px solid var(--line);
-  display:flex; align-items:center; justify-content:center;
-  font-family:var(--font-display); font-weight:800; font-size:15px;
-  transition:.25s;
+.melt-anim { animation: iceMelt 30s linear forwards; transform-origin: bottom center; }
+
+.stage-track { position: relative; display: flex; justify-content: center; align-items: flex-end; gap: 8px; padding-top: 8px; width: max-content; min-width: 100%; }
+.stage-scroll { overflow-x: auto; overflow-y: hidden; padding: 2px 0 8px; scrollbar-width: thin; }
+.stage-track .podium { flex: 0 0 50px; opacity: .58; transition: 0.3s; }
+.stage-track .podium.active { opacity: 1; }
+.stage-track .podium.passed { opacity: .78; }
+
+.cylinder-lane {
+  position: relative; width: 34px; height: 112px; margin: 0 auto 6px; overflow: hidden;
+  border: 2px solid rgb(var(--lane-rgb) / .8); border-radius: 50% / 7%;
+  background: rgb(var(--lane-rgb) / .13); box-shadow: none;
 }
-.seat .nm{font-size:10.5px; color:var(--text-dim); max-width:60px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.seat.active .av{
-  border-color:var(--fuse-1);
-  background:linear-gradient(135deg,rgba(255,138,61,.25),rgba(255,61,61,.15));
-  box-shadow:0 0 0 4px rgba(255,138,61,.15);
+.stage-track .podium.active .cylinder-lane { border-color: var(--lane-color); border-width: 3px; background: rgb(var(--lane-rgb) / .2); box-shadow: none; }
+.cylinder-check { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--lane-color); font-size: 24px; font-weight: 900; }
+.stage-track .stand { border-bottom-color: var(--lane-color); }
+.stage-track .podium.active .stand { border-bottom-color: var(--lane-color); box-shadow: none; }
+.stage-track .podium.passed .stand { border-bottom-color: var(--lane-color); }
+.lane-status { margin-top: 3px; color: var(--lane-color); font-family: var(--font-mono); font-size: 8px; font-weight: 800; white-space: nowrap; }
+
+.roaming-bomb {
+  position: absolute; left: 50%; top: 0; font-size: 19px; transform: translateX(-50%); transition: top .92s linear;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); z-index: 6; display: flex; justify-content: center; align-items: center;
 }
-.seat.active .nm{color:var(--gold); font-weight:700;}
-.seat.done .av{border-color:var(--ok); opacity:.55;}
-.bomb-icon{
-  position:absolute;
-  font-size:20px;
-  transition:all .5s cubic-bezier(.34,1.56,.64,1);
-  filter:drop-shadow(0 2px 6px rgba(255,61,61,.6));
+.roaming-bomb.critical { animation: bombRattle .12s infinite; }
+@keyframes bombRattle { 0%,100%{transform:translateX(-50%) rotate(-9deg);} 50%{transform:translateX(-50%) rotate(9deg);} }
+
+.ice-block { position: relative; flex: 0 0 54px; display: flex; flex-direction: column; align-items: center; }
+.ice-emoji { font-size: 34px; filter: drop-shadow(0 4px 6px rgba(0,195,255,.3)); transition: transform .25s, opacity .25s; }
+.ice-label { margin-top: 4px; font-size: 9px; color: var(--secondary); font-family: var(--font-mono); font-weight: 800; letter-spacing: .05em; }
+.ice-block.shatter .ice-emoji { transform: scale(1.5); opacity: 0; }
+.shard { position: absolute; top: 30%; left: 50%; width: 20px; height: 20px; animation: shardFly .7s ease-out forwards; pointer-events: none; }
+@keyframes shardFly { to { transform: translate(var(--tx),var(--ty)) rotate(200deg) scale(0); opacity: 0; } }
+
+/* クイズ用問題カード */
+.qcard {
+  background: #fff; border: 2.5px solid var(--primary);
+  border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 14px;
+  box-shadow: 4px 4px 0 rgba(255,107,107,0.15);
+}
+.qcard .qn { font-family: var(--font-mono); font-size: 11px; color: var(--primary); margin-bottom: 8px; font-weight: 800;}
+.qcard .qtext { font-family: var(--font-display); font-size: 17px; font-weight: 800; line-height: 1.5; }
+
+.hint-box {
+  background: #fffbea; border: 2px solid var(--gold); border-radius: 12px; padding: 12px 14px;
+  font-size: 13px; color: #d97706; font-weight: 800; margin-bottom: 14px; line-height: 1.6;
+}
+.role-badge { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; font-weight: 800; border-radius: 8px; padding: 4px 10px; margin-bottom: 14px; }
+.role-badge.q { background: #fee2e2; color: #dc2626; }
+
+.role-selector { display: grid; grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr); gap: 12px; margin: 16px 0; align-items: start; }
+.role-column-title { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); margin-bottom: 7px; }
+.questioner-slot, .answerer-option {
+  appearance: none; width: 100%; min-height: 48px; border: 2.5px solid var(--card-border); border-radius: 12px;
+  background: white; color: var(--text-main); padding: 13px 8px; font-family: var(--font-display); font-weight: 800; cursor: pointer;
+}
+.questioner-slot { min-height: 72px; display: flex; align-items: center; justify-content: center; border-style: dashed; }
+.questioner-slot.selected { border-color: var(--secondary); border-style: solid; background: var(--secondary-light); box-shadow: 0 0 0 2px rgba(0,195,255,.16); }
+.questioner-slot.empty { color: var(--text-dim); font-size: 12px; }
+.answerer-list { display: grid; gap: 7px; }
+.questioner-slot:disabled, .answerer-option:disabled { cursor: default; }
+
+.action-row { display: flex; gap: 10px; margin-top: 14px; }
+.btn-circle {
+  flex: 1; aspect-ratio: 1.5; border-radius: 16px; border: 2.5px solid var(--card-border); cursor: pointer;
+  font-family: var(--font-display); font-weight: 900; font-size: 28px; transition: .12s; padding: 16px 0;
+}
+.btn-circle:active { transform: scale(.95); }
+.btn-ok { background: var(--ok); color: white; box-shadow: 4px 4px 0 rgba(74, 222, 128, 0.4); }
+.btn-ng { background: var(--bad); color: white; box-shadow: 4px 4px 0 rgba(255, 107, 107, 0.4); }
+.btn-ok:active, .btn-ng:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 rgba(0,0,0,0.1); }
+
+.score-pill { display: flex; justify-content: space-between; align-items: center; background: #fff; border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; font-weight: 800; box-shadow: 0 4px 8px rgba(0,0,0,0.03); }
+.score-pill b { color: var(--secondary); font-family: var(--font-mono); }
+
+/* --- 演出オーバーレイ（成功・爆発の全画面表示） --- */
+.explosion-overlay, .icebreak-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  animation: flashIn 1.5s ease forwards;
+}
+.explosion-overlay { background: radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(255,107,107,.9) 100%); }
+.icebreak-overlay { background: radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(0,195,255,.85) 100%); }
+
+/* 改行（功！）を防ぐための white-space: nowrap 追加 */
+.boom-text, .ice-text {
+  font-family: var(--font-display); font-weight: 900;
+  color: white; text-shadow: 0 8px 16px rgba(0,0,0,0.2);
+  animation: boomPop .5s cubic-bezier(.34,1.8,.64,1); text-align: center; line-height: 1.3;
+  white-space: nowrap;
+  width: calc(100% - 32px);
+  max-width: 560px;
+  padding: 0 8px;
+}
+.boom-text { font-size: clamp(28px, 10vw, 52px); }
+.ice-text {
+  font-size: clamp(20px, 6.8vw, 44px);
+}
+@keyframes boomPop { 0% { transform: scale(.2) rotate(-8deg); opacity: 0; } 60% { transform: scale(1.18) rotate(3deg); opacity: 1; } 100% { transform: scale(1) rotate(0deg); } }
+@keyframes flashIn { 0% { opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+#app.shake { animation: shakeApp .5s; }
+@keyframes shakeApp { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(5px); } }
+
+.result-hero { text-align: center; padding: 26px 10px 10px; }
+.stamp { font-family: var(--font-display); font-weight: 900; font-size: 32px; margin-bottom: 6px; transform: rotate(-3deg); display: inline-block; }
+.stamp.clear { color: var(--secondary); text-shadow: 2px 2px 0 #fff, 0 4px 8px rgba(0,195,255,0.3); }
+.stamp.fail { color: var(--primary); text-shadow: 2px 2px 0 #fff, 0 4px 8px rgba(255,107,107,0.3); }
+
+textarea {
+  width: 100%; min-height: 70px; background: rgba(255,255,255,0.9); border: 2.5px solid var(--card-border);
+  border-radius: 12px; padding: 12px; color: var(--text-main); font-family: var(--font-body);
+  font-size: 13.5px; font-weight: 700; resize: vertical;
 }
 
-/* ---- 解答台 + 吊り爆弾（本家ファイブボンバーの舞台セット再現） ---- */
-.podium-stage{
-  position:relative;
-  background:
-    repeating-linear-gradient(100deg, rgba(255,255,255,0.035) 0 2px, transparent 2px 40px),
-    radial-gradient(120% 100% at 50% 0%, rgba(70,90,255,.20), transparent 62%),
-    linear-gradient(180deg, #0b0c16, #050507);
-  border:2.5px solid #000;
-  border-radius:16px;
-  box-shadow:5px 5px 0 rgba(0,0,0,.8);
-  padding:14px 10px 0;
-  overflow:hidden;
-  margin-bottom:14px;
-}
-.studio-clock{
-  width:96px; margin:0 auto 10px;
-  background:#000; border:2.5px solid var(--gold);
-  border-radius:10px; text-align:center; padding:6px 0 5px;
-  box-shadow:0 0 16px rgba(255,212,0,.25);
-}
-.studio-clock .num{
-  font-family:var(--font-mono); font-weight:800; font-size:26px; color:var(--fuse-1);
-  line-height:1;
-}
-.studio-clock.danger .num{color:var(--fuse-1); animation:pulse .5s infinite alternate;}
-.studio-clock .lbl{font-size:8.5px; color:var(--text-dim); font-family:var(--font-mono); letter-spacing:.1em;}
-.podium-row{
-  display:flex; align-items:flex-end; gap:8px;
-  padding-bottom:0;
-}
-.podium{
-  position:relative; flex:1; min-width:0;
-  display:flex; flex-direction:column; align-items:center;
-}
-.wire{width:2px; height:22px; background:#555;}
-/* 赤いモヤを削除し、純粋な揺れアニメーションのみ適用 */
-.bomb-hang{font-size:21px; margin-bottom:2px; transition:.3s; filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));}
-.podium.active .bomb-hang{animation:swing 1.1s ease-in-out infinite;}
-@keyframes swing{0%,100%{transform:rotate(-9deg);} 50%{transform:rotate(9deg);}}
-.stand{
-  width:100%;
-  background:linear-gradient(180deg,#2c2e38,#15161c);
-  border:2px solid #000; border-bottom:5px solid var(--gold);
-  border-radius:6px 6px 2px 2px;
-  padding:7px 3px 9px;
-  text-align:center;
-}
-/* 名前部分の赤いエフェクトを削除し、黄色のハイライトに変更 */
-.podium.active .stand{border-bottom-color:var(--gold); box-shadow:0 0 12px rgba(255,212,0,.45);}
-.podium.done .stand{border-bottom-color:var(--ok);}
-.podium.exploded .bomb-hang{filter:none;}
-.podium.exploded .stand{background:linear-gradient(180deg,#1a1a1a,#0a0a0a); border-bottom-color:#444;}
-.stand-name{font-family:var(--font-display); font-weight:800; font-size:10.5px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.podium.exploded .stand-name{color:#666; text-decoration:line-through;}
-.podium-floor{height:8px; margin-top:8px;
-  background:repeating-linear-gradient(90deg, rgba(255,212,0,.55) 0 10px, rgba(0,0,0,.55) 10px 20px);
-}
+footer.note { text-align: center; font-size: 11px; color: var(--text-dim); margin-top: 22px; font-family: var(--font-mono); opacity: .6; }
+.demo-note { font-size: 11px; color: var(--text-dim); text-align: center; margin: 10px 0 0; font-family: var(--font-mono); line-height: 1.6; font-weight: 700; }
 
-/* ---- 導火線の処理：回答中のレーン内で爆弾が落下する ---- */
-.stage-track{
-  position:relative;
-  display:flex; justify-content:center; align-items:flex-end; gap:8px;
-  padding-top:8px;
-  width:max-content;
-  min-width:100%;
-}
-.stage-scroll{
-  overflow-x:auto;
-  overflow-y:hidden;
-  padding:2px 0 8px;
-  scrollbar-width:thin;
-}
-.stage-track .podium{
-  flex:0 0 50px;
-  opacity:.58;
-}
-.stage-track .podium.active{opacity:1;}
-.stage-track .podium.passed{opacity:.78;}
-.cylinder-lane{
-  position:relative;
-  width:34px;
-  height:112px;
-  margin:0 auto 6px;
-  overflow:hidden;
-  border:2px solid rgb(var(--lane-rgb) / .8);
-  border-radius:50% / 7%;
-  background:rgb(var(--lane-rgb) / .13);
-  box-shadow:none;
-}
-.stage-track .podium.active .cylinder-lane{
-  border-color:var(--lane-color);
-  border-width:3px;
-  background:rgb(var(--lane-rgb) / .2);
-  box-shadow:none;
-}
-.cylinder-check{
-  position:absolute;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:var(--lane-color);
-  font-size:24px;
-  font-weight:900;
-  text-shadow:0 1px 2px rgba(0,0,0,.7);
-}
-.stage-track .stand{border-bottom-color:var(--lane-color);}
-.stage-track .podium.active .stand{
-  border-bottom-color:var(--lane-color);
-  box-shadow:none;
-}
-.stage-track .podium.passed .stand{border-bottom-color:var(--lane-color);}
-.lane-status{
-  margin-top:3px;
-  color:var(--lane-color);
-  font-family:var(--font-mono);
-  font-size:8px;
-  font-weight:700;
-  white-space:nowrap;
-}
-.roaming-bomb{
-  position:absolute; left:50%; top:0;
-  font-size:19px;
-  transform:translateX(-50%);
-  /* 前作と同様に、時間経過による縦方向の落下だけを動かす */
-  transition:top .92s linear;
-  filter:drop-shadow(0 2px 4px rgba(255,59,59,.7));
-  z-index:6;
-}
-.roaming-bomb.critical{
-  animation:bombRattle .12s infinite;
-  filter:drop-shadow(0 0 10px rgba(255,20,20,1));
-}
-@keyframes bombRattle{0%,100%{transform:translateX(-50%) rotate(-9deg);} 50%{transform:translateX(-50%) rotate(9deg);}}
-.podium.passed .stand{border-bottom-color:var(--ok);}
-.ice-block{
-  position:relative; flex:0 0 54px;
-  display:flex; flex-direction:column; align-items:center;
-}
-.ice-block .ice-emoji{
-  font-size:34px;
-  filter:drop-shadow(0 3px 5px rgba(0,150,255,.4));
-  transition:transform .25s, opacity .25s;
-}
-.ice-block .ice-label{
-  margin-top:4px; font-size:9px; color:#8fd8ff; font-family:var(--font-mono);
-  letter-spacing:.05em;
-}
-.ice-block.shatter .ice-emoji{transform:scale(1.5); opacity:0;}
-.shard{
-  position:absolute; top:30%; left:50%; font-size:13px;
-  animation:shardFly .7s ease-out forwards;
-  pointer-events:none;
-}
-@keyframes shardFly{to{transform:translate(var(--tx),var(--ty)) rotate(200deg); opacity:0;}}
-.icebreak-overlay{
-  position:fixed; inset:0; z-index:999;
-  background:radial-gradient(circle, rgba(255,255,255,.97) 0%, rgba(140,220,255,.95) 42%, rgba(10,25,45,.97) 100%);
-  display:flex; align-items:center; justify-content:center;
-  animation:flashIn 1.5s ease forwards;
-}
-.ice-text{
-  font-family:var(--font-display); font-weight:900; font-size:9vw;
-  color:#04263f; -webkit-text-stroke:2px #fff;
-  text-shadow:4px 4px 0 rgba(4,38,63,.35);
-  animation:boomPop .55s cubic-bezier(.34,1.8,.64,1);
-  text-align:center; line-height:1.3;
-}
-@media (prefers-reduced-motion: reduce){
-  .roaming-bomb, .ice-block .ice-emoji, .shard, .icebreak-overlay, .ice-text{animation:none;}
-}
+.icon { display: inline-block; width: 1.2em; height: 1.2em; vertical-align: middle; }
+.icon-lg { display: inline-block; width: 2.2em; height: 2.2em; vertical-align: middle; margin-bottom: 6px;}
 
-/* quiz question card */
-.qcard{
-  background:var(--panel-2);
-  border:2.5px solid var(--fuse-1);
-  border-radius:16px;
-  padding:20px;
-  text-align:center;
-  margin-bottom:14px;
-  box-shadow:5px 5px 0 rgba(196,0,24,.4);
-}
-.qcard .qn{font-family:var(--font-mono); font-size:11px; color:var(--fuse-1); margin-bottom:8px;}
-.qcard .qtext{font-family:var(--font-display); font-size:17px; font-weight:800; line-height:1.5;}
+/* チュートリアル用アニメーション（爆弾→爆発→氷が溶ける） */
+@keyframes tBombAnim { 0%,40% { opacity:1; transform:scale(1) rotate(0deg); } 45% { opacity:1; transform:scale(1.1) rotate(10deg); } 50%,100% { opacity:0; transform:scale(1.2); } }
+@keyframes tExplAnim { 0%,45% { opacity:0; transform:scale(0.5); } 50% { opacity:1; transform:scale(1.2); } 65%,100% { opacity:0; transform:scale(1); } }
+@keyframes tIceAnim { 0%,45% { transform:scaleY(1); opacity:1; } 55%,100% { transform:scaleY(0.2) translateY(20px); opacity:0; } }
 
-.hint-box{
-  background:rgba(255,212,0,.1); border:2px solid var(--gold);
-  border-radius:12px; padding:12px 14px; font-size:13px; color:var(--gold);
-  margin-bottom:14px; line-height:1.6;
-  box-shadow:3px 3px 0 rgba(0,0,0,.6);
-}
-
-.role-badge{
-  display:inline-flex; align-items:center; gap:6px;
-  font-family:var(--font-mono); font-size:11px;
-  border-radius:8px; padding:4px 10px; margin-bottom:14px;
-}
-.role-badge.q{background:rgba(255,138,61,.15); color:var(--fuse-1); border:1px solid var(--fuse-1);}
-.role-badge.a{background:rgba(111,227,166,.12); color:var(--ok); border:1px solid var(--ok);}
-
-.role-selector{
-  display:grid;
-  grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);
-  gap:12px;
-  margin:16px 0;
-  align-items:start;
-}
-.role-column-title{
-  font-family:var(--font-mono);
-  font-size:11px;
-  color:var(--text-dim);
-  margin-bottom:7px;
-}
-.questioner-slot,
-.answerer-option{
-  appearance:none;
-  width:100%;
-  min-height:48px;
-  border:2px solid var(--line);
-  border-radius:12px;
-  background:var(--panel-2);
-  color:var(--text);
-  padding:13px 8px;
-  font-family:var(--font-display);
-  font-weight:800;
-  cursor:pointer;
-}
-.questioner-slot{
-  min-height:72px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  border-style:dashed;
-}
-.questioner-slot.selected{
-  border-color:var(--gold);
-  border-style:solid;
-  background:rgba(255,212,0,.14);
-  box-shadow:0 0 0 2px rgba(255,212,0,.2);
-}
-.questioner-slot.empty{color:var(--text-dim); font-size:12px;}
-.answerer-list{display:grid; gap:7px;}
-.questioner-slot:disabled,
-.answerer-option:disabled{cursor:default;}
-
-.action-row{display:flex; gap:10px; margin-top:14px;}
-.btn-circle{
-  flex:1; aspect-ratio:1.5; border-radius:16px; border:none; cursor:pointer;
-  font-family:var(--font-display); font-weight:900; font-size:26px;
-  transition:.12s;
-}
-.btn-circle:active{transform:scale(.95);}
-.btn-ok{background:linear-gradient(180deg,#7dffb0,var(--ok)); color:#0e2418; border:2.5px solid #000; box-shadow:4px 4px 0 #000;}
-.btn-ng{background:linear-gradient(180deg,#ff6d80,var(--bad)); color:#2a0810; border:2.5px solid #000; box-shadow:4px 4px 0 #000;}
-.btn-ok:active, .btn-ng:active{transform:translate(2px,2px); box-shadow:2px 2px 0 #000;}
-
-.score-pill{
-  display:flex; justify-content:space-between; align-items:center;
-  background:var(--panel-2); border:1px solid var(--line); border-radius:12px;
-  padding:10px 14px; margin-bottom:14px; font-size:13px;
-}
-.score-pill b{color:var(--gold); font-family:var(--font-mono);}
-
-.result-hero{
-  text-align:center; padding:26px 10px 10px;
-}
-.result-hero .stamp{
-  font-family:var(--font-display); font-weight:900; font-size:32px;
-  margin-bottom:6px;
-  -webkit-text-stroke:2px #000;
-  transform:rotate(-3deg);
-  display:inline-block;
-}
-.stamp.clear{color:var(--ok); text-shadow:3px 3px 0 #000;}
-.stamp.fail{color:var(--fuse-1); text-shadow:3px 3px 0 #000;}
-
-textarea{
-  width:100%; min-height:70px; background:var(--bg); border:1.5px solid var(--line);
-  border-radius:12px; padding:12px; color:var(--text); font-family:var(--font-body);
-  font-size:13.5px; resize:vertical;
-}
-
-.progress-track{
-  height:5px; background:var(--panel-2); border-radius:99px; overflow:hidden; margin-bottom:20px;
-}
-.progress-fill{
-  height:100%; background:linear-gradient(90deg,var(--fuse-1),var(--fuse-2));
-  transition:width .3s;
-}
-
-footer.note{
-  text-align:center; font-size:11px; color:var(--text-dim); margin-top:22px; font-family:var(--font-mono);
-  opacity:.6;
-}
-.demo-note{
-  font-size:11px; color:var(--text-dim); text-align:center; margin:10px 0 0;
-  font-family:var(--font-mono); line-height:1.6;
-}
 </style>
 </head>
 <body>
@@ -780,53 +384,59 @@ footer.note{
 
 <script>
 /* =========================================================
+   オリジナルSVGアイコン群 (絵文字の代わり)
+========================================================= */
+const SVGS = {
+  bombLarge: `
+    <svg class="frost-bomb" viewBox="-15 -15 130 130" xmlns="http://www.w3.org/2000/svg">
+      <path class="ice-crystal" d="M 15 65 L 20 55 L 25 65 L 20 75 Z" fill="#00c3ff" opacity="0.5"/>
+      <path class="ice-crystal delay" d="M 85 45 L 90 38 L 95 45 L 90 52 Z" fill="#00c3ff" opacity="0.4"/>
+      <circle class="ice-crystal" cx="15" cy="40" r="3" fill="#ffffff" />
+      <circle class="ice-crystal delay" cx="95" cy="70" r="4" fill="#ffffff" opacity="0.8"/>
+      <path d="M 50 25 Q 60 5 75 25" fill="none" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+      <g class="spark">
+        <polygon points="0,-12 4,-4 12,0 4,4 0,12 -4,4 -12,0 -4,-4" fill="#ffcf33" />
+        <circle cx="0" cy="0" r="5" fill="#ff6b6b" />
+      </g>
+      <circle cx="50" cy="65" r="38" fill="#2c3e50" />
+      <path d="M 22 55 Q 35 32 58 40" fill="none" stroke="#475569" stroke-width="8" stroke-linecap="round" />
+      <circle cx="35" cy="42" r="5" fill="#ffffff" opacity="0.8" />
+      <rect x="38" y="22" width="24" height="14" rx="4" fill="#cbd5e1" />
+      <rect x="33" y="32" width="34" height="6" rx="3" fill="#94a3b8" />
+    </svg>`,
+  bomb: `<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M50 25 Q60 5 75 25" fill="none" stroke="#94a3b8" stroke-width="6" stroke-linecap="round"/><circle cx="75" cy="25" r="6" fill="#ffcf33"/><circle cx="50" cy="65" r="35" fill="#2c3e50"/><path d="M25 55 Q35 35 55 40" fill="none" stroke="#475569" stroke-width="7" stroke-linecap="round"/><circle cx="35" cy="45" r="4" fill="#fff" opacity="0.8"/><rect x="40" y="25" width="20" height="12" rx="3" fill="#cbd5e1"/><rect x="35" y="34" width="30" height="5" rx="2" fill="#94a3b8"/></svg>`,
+  ice: `<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M50 15 L85 35 L85 75 L50 95 L15 75 L15 35 Z" fill="#88ddff"/><path d="M50 15 L85 35 L50 55 L15 35 Z" fill="#e0f7ff"/><path d="M15 35 L50 55 L50 95 L15 75 Z" fill="#00c3ff"/></svg>`,
+  chat: `<svg viewBox="0 0 100 100" width="100%" height="100%"><rect x="10" y="20" width="80" height="55" rx="20" fill="#fff" stroke="#00c3ff" stroke-width="6"/><path d="M30 75 L30 95 L50 75 Z" fill="#fff" stroke="#00c3ff" stroke-width="6" stroke-linejoin="round"/><circle cx="35" cy="47" r="5" fill="#00c3ff"/><circle cx="50" cy="47" r="5" fill="#00c3ff"/><circle cx="65" cy="47" r="5" fill="#00c3ff"/></svg>`,
+  key: `<svg viewBox="0 0 100 100" width="100%" height="100%"><circle cx="35" cy="50" r="20" fill="none" stroke="#ffcf33" stroke-width="10"/><path d="M55 50 L90 50 L90 70 M75 50 L75 70" fill="none" stroke="#ffcf33" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  door: `<svg viewBox="0 0 100 100" width="100%" height="100%"><rect x="25" y="15" width="50" height="70" rx="8" fill="none" stroke="#ff6b6b" stroke-width="10"/><circle cx="60" cy="55" r="4" fill="#ff6b6b"/></svg>`,
+  clipboard: `<svg viewBox="0 0 100 100" width="100%" height="100%"><rect x="25" y="25" width="50" height="65" rx="5" fill="none" stroke="currentColor" stroke-width="8"/><rect x="40" y="15" width="20" height="15" rx="3" fill="currentColor"/><path d="M40 50 L60 50 M40 65 L60 65" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg>`,
+  check: `<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M20 50 L40 70 L80 30" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  people: `<svg viewBox="0 0 100 100" width="100%" height="100%"><circle cx="35" cy="35" r="15" fill="currentColor"/><path d="M10 80 Q35 50 60 80 Z" fill="currentColor"/><circle cx="70" cy="45" r="12" fill="currentColor" opacity="0.6"/><path d="M55 80 Q70 60 90 80 Z" fill="currentColor" opacity="0.6"/></svg>`,
+  refresh: `<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M50 15 A35 35 0 1 1 15 50" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round"/><path d="M15 30 L15 50 L35 50" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  target: `<svg viewBox="0 0 100 100" width="100%" height="100%"><circle cx="50" cy="50" r="40" fill="none" stroke="#ff6b6b" stroke-width="10"/><circle cx="50" cy="50" r="20" fill="#ff6b6b"/></svg>`,
+  bulb: `<svg viewBox="0 0 100 100" width="100%" height="100%"><circle cx="50" cy="40" r="25" fill="#ffcf33"/><path d="M40 70 L60 70 L55 85 L45 85 Z" fill="#94a3b8"/><circle cx="50" cy="40" r="15" fill="#fff" opacity="0.8"/></svg>`,
+  pencil: `<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M70 20 L80 30 L35 75 L20 80 L25 65 Z" fill="#ffcf33" stroke="#2c3e50" stroke-width="5" stroke-linejoin="round"/><path d="M60 30 L70 40" stroke="#2c3e50" stroke-width="5"/><path d="M20 80 L30 70" stroke="#2c3e50" stroke-width="5"/></svg>`,
+  explosion: `<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M50 5 L60 35 L95 40 L65 55 L75 90 L50 70 L25 90 L35 55 L5 40 L40 35 Z" fill="#ffcf33" stroke="#ff6b6b" stroke-width="6" stroke-linejoin="round"/></svg>`,
+  trophy: `<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M20 25 L80 25 L70 55 Q50 75 50 85 L30 55 Z" fill="#ffcf33"/><rect x="35" y="85" width="30" height="10" rx="3" fill="#f39c12"/><path d="M15 30 Q5 30 15 45 L25 40" fill="none" stroke="#ffcf33" stroke-width="6" stroke-linecap="round"/><path d="M85 30 Q95 30 85 45 L75 40" fill="none" stroke="#ffcf33" stroke-width="6" stroke-linecap="round"/></svg>`,
+  sparkHead: `<svg viewBox="0 0 100 100" width="100%" height="100%"><polygon points="50,10 60,40 90,50 60,60 50,90 40,60 10,50 40,40" fill="#ffcf33"/><circle cx="50" cy="50" r="15" fill="#ff6b6b"/></svg>`
+};
+
+/* =========================================================
    ステート管理（ホストが更新し、PeerJSで参加者へ同期）
 ========================================================= */
 const state = {
-  screen: 'title',
-  nickname: '',
-  isHost: false,
-  roomCode: '',
-  joinCode: '',
-  participants: [],
-  players: [],
-  mode: null, // 'intro_quiz' | 'quiz_only'
-  introIndex: 0,
-  introTimer: 30,
-  introTimerHandle: null,
-  quizIndex: 0, // 現在の出題ペアのindex
-  questioner: null,
-  answerer: null,
-  question: null,
-  changeCount: 0,
-  prepTimer: 10,
-  prepHandle: null,
-  quizTimer: 30,
-  quizHandle: null,
-  hintUsed: false,
-  hintText: '',
-  viewAs: 'answerer', // デモ用の視点切替: 'questioner' / 'answerer'
-  correctCount: 0,
-  bombPosition: 0,
-  answererOrder: [],
-  roundTimeTotal: 30,
-  history: [],
-  cleared: null, // true/false
-  finalScores: [],
-  rating: ''
+  screen: 'title', nickname: '', isHost: false, roomCode: '', joinCode: '',
+  participants: [], players: [], mode: null, introIndex: 0, introTimer: 30,
+  introTimerHandle: null, quizIndex: 0, questioner: null, answerer: null,
+  question: null, changeCount: 0, prepTimer: 10, prepHandle: null,
+  quizTimer: 30, quizHandle: null, hintUsed: false, hintText: '',
+  viewAs: 'answerer', correctCount: 0, bombPosition: 0, answererOrder: [],
+  roundTimeTotal: 30, history: [], cleared: null, finalScores: [], rating: ''
 };
 
-let peer = null;
-let hostConnection = null;
-let guestConnections = [];
-let myPeerId = '';
-let connectionStatus = 'idle';
-
-const correctSound = new Audio('./sounds/correct.mp3');
-const wrongSound = new Audio('./sounds/wrong.mp3');
-
-correctSound.preload = 'auto';
-wrongSound.preload = 'auto';
+let peer = null; let hostConnection = null; let guestConnections = []; let myPeerId = ''; let connectionStatus = 'idle';
+const correctSound = new Audio('./sounds/correct.mp3'); const wrongSound = new Audio('./sounds/wrong.mp3');
+correctSound.preload = 'auto'; wrongSound.preload = 'auto';
 
 const QUESTIONS = [
   () => `${state.questioner}さんの好きな映画・ドラマのジャンルを${state.answererOrder.length}つ答えよ！`,
@@ -846,57 +456,37 @@ const QUESTIONS = [
   () => `${state.questioner}さんが100万円をもらったら使いたいことを${state.answererOrder.length}つ答えよ！`
 ];
 
-function el(html){
-  const d = document.createElement('div');
-  d.innerHTML = html.trim();
-  return d.firstChild;
-}
+function el(html){ const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
 
 const SCREEN_PHASE = {
-  title:'ice', nickname:'ice', roomCreate:'ice', roomJoin:'ice',
-  waitingRoom:'ice', modeSelect:'ice', introPrep:'ice', introRunning:'ice',
-  quizStartGate:'ice',
-  quizPrep:'hot', quizActive:'hot',
-  quizRoundResult:'ice', finalResult:'ice'
+  title:'ice', nickname:'ice', roomCreate:'ice', roomJoin:'ice', waitingRoom:'ice', modeSelect:'ice', introPrep:'ice', introRunning:'ice',
+  quizStartGate:'ice', quizPrep:'hot', quizActive:'hot', quizRoundResult:'ice', finalResult:'ice'
 };
 const SCREEN_PROGRESS = {
-  title:2, nickname:8, roomCreate:14, roomJoin:14, waitingRoom:20,
-  modeSelect:26, introPrep:32, introRunning:38, quizStartGate:44,
+  title:2, nickname:8, roomCreate:14, roomJoin:14, waitingRoom:20, modeSelect:26, introPrep:32, introRunning:38, quizStartGate:44,
   quizPrep:52, quizActive:72, quizRoundResult:90, finalResult:100
 };
 
 function setupChrome(){
   if(!document.getElementById('fuseBar')){
-    const bar = document.createElement('div');
-    bar.id = 'fuseBar';
-    bar.innerHTML = '<div class="fill" id="fuseFill"></div>';
-    document.body.appendChild(bar);
+    const bar = document.createElement('div'); bar.id = 'fuseBar';
+    bar.innerHTML = `<div class="fill" id="fuseFill"><div class="spark-head">${SVGS.sparkHead}</div></div>`; document.body.appendChild(bar);
   }
   if(!document.getElementById('snowfield')){
-    const snow = document.createElement('div');
-    snow.id = 'snowfield';
-    snow.className = 'snowfield';
-    for(let i=0;i<18;i++){
-      const flake = document.createElement('span');
-      flake.textContent = '❄';
-      flake.style.left = (Math.random()*100)+'%';
-      flake.style.setProperty('--drift', (Math.random()*40-20)+'px');
-      flake.style.animationDuration = (9+Math.random()*8)+'s';
-      flake.style.animationDelay = (Math.random()*8)+'s';
-      flake.style.fontSize = (10+Math.random()*10)+'px';
-      snow.appendChild(flake);
+    const snow = document.createElement('div'); snow.id = 'snowfield'; snow.className = 'snowfield';
+    for(let i=0;i<12;i++){
+      const flake = document.createElement('div'); flake.className = 'snow-crystal'; flake.innerHTML = SVGS.ice;
+      flake.style.left = (Math.random()*100)+'%'; flake.style.setProperty('--drift', (Math.random()*60-30)+'px');
+      flake.style.animationDuration = (8+Math.random()*6)+'s'; flake.style.animationDelay = (Math.random()*5)+'s'; snow.appendChild(flake);
     }
     document.body.appendChild(snow);
   }
 }
 function updateChrome(){
   const phase = SCREEN_PHASE[state.screen] || 'ice';
-  document.body.classList.toggle('phase-ice', phase==='ice');
-  document.body.classList.toggle('phase-hot', phase==='hot');
-  const snow = document.getElementById('snowfield');
-  if(snow) snow.style.display = phase==='ice' ? 'block' : 'none';
-  const fill = document.getElementById('fuseFill');
-  if(fill) fill.style.width = (SCREEN_PROGRESS[state.screen] || 0) + '%';
+  document.body.classList.toggle('phase-ice', phase==='ice'); document.body.classList.toggle('phase-hot', phase==='hot');
+  const snow = document.getElementById('snowfield'); if(snow) snow.style.display = phase==='ice' ? 'block' : 'none';
+  const fill = document.getElementById('fuseFill'); if(fill) fill.style.width = (SCREEN_PROGRESS[state.screen] || 0) + '%';
 }
 
 function render(skipAnimation = false){
@@ -904,64 +494,35 @@ function render(skipAnimation = false){
   const visibleScreen = !state.isHost && state.screen === 'roomCreate' ? 'waitingRoom' : state.screen;
   const screenNode = SCREENS[visibleScreen]();
   if(skipAnimation) screenNode.style.animation = 'none';
-  // DOMを入れ替えることで画面更新時のチラつきを抑える
-  app.replaceChildren(screenNode);
-  updateChrome();
+  app.replaceChildren(screenNode); updateChrome();
 }
 function go(screen){
-  const prevPhase = SCREEN_PHASE[state.screen] || 'ice';
-  const nextPhase = SCREEN_PHASE[screen] || 'ice';
-  state.screen = screen;
-  if(prevPhase === 'ice' && nextPhase === 'hot'){
-    render();
-    showIgnite();
-  } else {
-    render();
-  }
+  const prevPhase = SCREEN_PHASE[state.screen] || 'ice'; const nextPhase = SCREEN_PHASE[screen] || 'ice'; state.screen = screen;
+  if(prevPhase === 'ice' && nextPhase === 'hot'){ render(); showIgnite(); } else { render(); }
   if(state.isHost) broadcastState();
 }
 
 function sharedState(){
-  const copy = {};
-  Object.keys(state).forEach(key=>{
-    if(!['nickname','isHost','viewAs','introTimerHandle','prepHandle','quizHandle'].includes(key)){
-      copy[key] = state[key];
-    }
-  });
-  return copy;
+  const copy = {}; Object.keys(state).forEach(key=>{ if(!['nickname','isHost','viewAs','introTimerHandle','prepHandle','quizHandle'].includes(key)){ copy[key] = state[key]; } }); return copy;
 }
 
 function broadcastState(renderRequired = true){
   if(!state.isHost) return;
   const message = {type:'SYNC_STATE', state:sharedState(), renderRequired};
-  guestConnections = guestConnections.filter(conn=>conn.open);
-  guestConnections.forEach(conn=>conn.send(message));
+  guestConnections = guestConnections.filter(conn=>conn.open); guestConnections.forEach(conn=>conn.send(message));
 }
 
 function broadcastEffect(effect){
   if(!state.isHost) return;
-  guestConnections.filter(conn=>conn.open).forEach(conn=>
-    conn.send({type:'PLAY_EFFECT', effect})
-  );
+  guestConnections.filter(conn=>conn.open).forEach(conn=>conn.send({type:'PLAY_EFFECT', effect}));
 }
 
 function applySharedState(nextState, renderRequired = true){
-  const previous = sharedState();
-  const previousPhase = SCREEN_PHASE[previous.screen] || 'ice';
-  const local = {
-    nickname:state.nickname,
-    isHost:state.isHost,
-    viewAs:state.viewAs,
-    introTimerHandle:state.introTimerHandle,
-    prepHandle:state.prepHandle,
-    quizHandle:state.quizHandle
-  };
+  const previous = sharedState(); const previousPhase = SCREEN_PHASE[previous.screen] || 'ice';
+  const local = { nickname:state.nickname, isHost:state.isHost, viewAs:state.viewAs, introTimerHandle:state.introTimerHandle, prepHandle:state.prepHandle, quizHandle:state.quizHandle };
   Object.assign(state, nextState, local);
-  if(!renderRequired && previous.screen === state.screen){
-    updateSyncedTimer();
-  } else {
-    render(previous.screen === state.screen);
-    const nextPhase = SCREEN_PHASE[state.screen] || 'ice';
+  if(!renderRequired && previous.screen === state.screen){ updateSyncedTimer(); } else {
+    render(previous.screen === state.screen); const nextPhase = SCREEN_PHASE[state.screen] || 'ice';
     if(previousPhase === 'ice' && nextPhase === 'hot') showIgnite();
   }
 }
@@ -969,252 +530,132 @@ function applySharedState(nextState, renderRequired = true){
 function updateSyncedTimer(){
   if(state.screen === 'introRunning'){
     const timer = document.getElementById('timerNum');
-    if(timer){
-      timer.textContent = state.introTimer;
-      timer.style.color = state.introTimer <= 5 ? 'var(--bad)' : 'var(--fuse-1)';
-    }
-    return;
+    if(timer){ timer.textContent = state.introTimer; timer.style.color = state.introTimer <= 5 ? 'var(--bad)' : 'var(--primary)'; } return;
   }
-  if(state.screen === 'quizPrep'){
-    const timer = document.getElementById('prepSec');
-    if(timer) timer.textContent = state.prepTimer;
-    return;
-  }
+  if(state.screen === 'quizPrep'){ const timer = document.getElementById('prepSec'); if(timer) timer.textContent = state.prepTimer; return; }
   if(state.screen === 'quizActive'){
-    const timer = document.getElementById('timerNum');
-    const clock = document.getElementById('clockBox');
-    if(timer) timer.textContent = state.quizTimer;
-    if(clock) clock.classList.toggle('danger', state.quizTimer <= 5);
+    const timer = document.getElementById('timerNum'); const clock = document.getElementById('clockBox');
+    if(timer) timer.textContent = state.quizTimer; if(clock) clock.classList.toggle('danger', state.quizTimer <= 5);
     updateBombDrop();
   }
 }
 
-function showConnectionError(message){
-  alert(message);
-}
-
-function destroyPeer(){
+function showConnectionError(message){ alert(message); }
+function destroyPeer(nextStatus = 'idle'){
+  connectionStatus = nextStatus;
   if(peer) peer.destroy();
-  peer = null;
-  hostConnection = null;
-  guestConnections = [];
-  myPeerId = '';
-  connectionStatus = 'idle';
+  peer = null; hostConnection = null; guestConnections = []; myPeerId = '';
 }
-
-function createPeerRoom(){
-  destroyPeer();
+function resetRoomSession(nextStatus = 'idle'){
+  destroyPeer(nextStatus);
+  state.roomCode = '';
+  state.joinCode = '';
   state.players = [];
   state.participants = [];
-  connectionStatus = 'connecting';
-  state.roomCode = genCode();
-  updateRoomCreateStatus();
+  state.questioner = null;
+  state.answererOrder = [];
+}
+function createPeerRoom(){
+  destroyPeer(); state.players = []; state.participants = []; connectionStatus = 'connecting';
+  state.roomCode = genCode(); updateRoomCreateStatus();
   peer = new Peer(state.roomCode, {debug:2});
   peer.on('open', id=>{
-    myPeerId = id;
-    connectionStatus = 'connected';
-    state.players = [{id, name:state.nickname}];
-    state.participants = [state.nickname];
-    if(state.screen === 'nickname') go('waitingRoom');
-    else refreshRoomDisplay();
+    myPeerId = id; connectionStatus = 'connected';
+    state.players = [{id, name:state.nickname}]; state.participants = [state.nickname];
+    if(state.screen === 'nickname') go('waitingRoom'); else refreshRoomDisplay();
   });
-  peer.on('connection', conn=>{
-    guestConnections.push(conn);
-    conn.on('data', data=>handleGuestMessage(data, conn));
-    conn.on('close', ()=>removeGuest(conn.peer));
-  });
-  peer.on('error', error=>{
-    if(error.type === 'unavailable-id'){
-      createPeerRoom();
-      return;
-    }
-    showConnectionError('部屋を作成できませんでした。インターネット接続を確認してください。');
-  });
+  peer.on('connection', conn=>{ guestConnections.push(conn); conn.on('data', data=>handleGuestMessage(data, conn)); conn.on('close', ()=>removeGuest(conn.peer)); });
+  peer.on('error', error=>{ if(error.type === 'unavailable-id'){ createPeerRoom(); return; } showConnectionError('部屋を作成できませんでした。インターネット接続を確認してください。'); });
 }
-
 function connectToRoom(code){
-  destroyPeer();
-  state.players = [];
-  state.participants = [];
-  connectionStatus = 'connecting';
+  destroyPeer(); state.players = []; state.participants = []; connectionStatus = 'connecting';
   peer = new Peer(undefined, {debug:2});
   peer.on('open', id=>{
-    myPeerId = id;
-    hostConnection = peer.connect(code);
-    hostConnection.on('open', ()=>{
-      connectionStatus = 'connected';
-      hostConnection.send({type:'JOIN', id, name:state.nickname});
-    });
+    myPeerId = id; hostConnection = peer.connect(code);
+    hostConnection.on('open', ()=>{ connectionStatus = 'connected'; hostConnection.send({type:'JOIN', id, name:state.nickname}); });
     hostConnection.on('data', handleHostMessage);
-    hostConnection.on('close', ()=>showConnectionError('ホストとの接続が切れました。'));
+    hostConnection.on('close', ()=>{
+      if(!['leaving','closed'].includes(connectionStatus)) showConnectionError('ホストとの接続が切れました。');
+    });
     hostConnection.on('error', ()=>showConnectionError('部屋に接続できませんでした。'));
   });
-  peer.on('error', error=>{
-    const message = error.type === 'peer-unavailable'
-      ? '部屋が見つかりません。あいことばを確認してください。'
-      : '接続できませんでした。インターネット接続を確認してください。';
-    showConnectionError(message);
-  });
+  peer.on('error', error=>{ const message = error.type === 'peer-unavailable' ? '部屋が見つかりません。あいことばを確認してください。' : '接続できませんでした。インターネット接続を確認してください。'; showConnectionError(message); });
 }
-
 function handleHostMessage(data){
-  if(data.type === 'SYNC_STATE'){
-    connectionStatus = 'connected';
-    applySharedState(data.state, data.renderRequired !== false);
-  }
-  if(data.type === 'JOIN_ERROR'){
-    connectionStatus = 'error';
-    showConnectionError(data.message);
-    destroyPeer();
-    state.screen = 'roomJoin';
+  if(data.type === 'SYNC_STATE'){ connectionStatus = 'connected'; applySharedState(data.state, data.renderRequired !== false); }
+  if(data.type === 'JOIN_ERROR'){ connectionStatus = 'error'; showConnectionError(data.message); destroyPeer(); state.screen = 'roomJoin'; render(); }
+  if(data.type === 'ROOM_CLOSED'){
+    alert('ホストが部屋を解散しました。');
+    resetRoomSession('closed');
+    state.isHost = false;
+    state.screen = 'nickname';
     render();
   }
-  if(data.type === 'PLAY_EFFECT'){
-    if(data.effect === 'iceBreak') showIceBreak(()=>{});
-    if(data.effect === 'explosion') showExplosion(()=>{});
-  }
+  if(data.type === 'PLAY_EFFECT'){ if(data.effect === 'iceBreak') showIceBreak(()=>{}); if(data.effect === 'explosion') showExplosion(()=>{}); }
 }
-
 function removeGuest(peerId){
   if(!state.isHost || !['roomCreate','waitingRoom'].includes(state.screen)) return;
-  state.players = state.players.filter(player=>player.id !== peerId);
-  state.participants = state.players.map(player=>player.name);
-  broadcastState();
-  refreshRoomDisplay();
+  state.players = state.players.filter(player=>player.id !== peerId); state.participants = state.players.map(player=>player.name);
+  broadcastState(); refreshRoomDisplay();
 }
-
 function updateRoomCreateStatus(){
-  const code = document.getElementById('hostRoomCode');
-  const count = document.getElementById('hostParticipantCount');
-  const confirm = document.getElementById('confirm');
+  const code = document.getElementById('hostRoomCode'); const count = document.getElementById('hostParticipantCount'); const confirm = document.getElementById('confirm');
   if(code) code.textContent = state.roomCode || '準備中…';
-  if(count) count.textContent = `👥 ${state.participants.length}人が入室中(最大10人)`;
+  if(count) count.innerHTML = `<span class="icon">${SVGS.people}</span> ${state.participants.length}人が入室中(最大10人)`;
   if(confirm) confirm.disabled = state.participants.length < 2;
 }
-
-function refreshRoomDisplay(){
-  if(state.screen === 'roomCreate'){
-    updateRoomCreateStatus();
-  } else {
-    render(true);
-  }
-}
-
-function playerFor(peerId){
-  return state.players.find(player=>player.id === peerId);
-}
-
+function refreshRoomDisplay(){ if(state.screen === 'roomCreate'){ updateRoomCreateStatus(); } else { render(true); } }
+function playerFor(peerId){ return state.players.find(player=>player.id === peerId); }
 function isAllowed(action, senderId){
-  const player = playerFor(senderId);
-  if(!player) return false;
+  const player = playerFor(senderId); if(!player) return false;
   if(action === 'HINT') return state.screen === 'quizActive' && player.name === state.answererOrder[state.bombPosition];
-  if(['CHANGE_QUESTION','DECIDE_QUESTION'].includes(action)){
-    return state.screen === 'quizPrep' && player.name === state.questioner;
-  }
-  if(['JUDGE_CORRECT','JUDGE_WRONG'].includes(action)){
-    return state.screen === 'quizActive' && player.name === state.questioner;
-  }
-  if(['PLAY_AGAIN','END_GAME'].includes(action)){
-    return state.screen === 'quizRoundResult' && player.name === state.questioner;
-  }
+  if(['CHANGE_QUESTION','DECIDE_QUESTION'].includes(action)) return state.screen === 'quizPrep' && player.name === state.questioner;
+  if(['JUDGE_CORRECT','JUDGE_WRONG'].includes(action)) return state.screen === 'quizActive' && player.name === state.questioner;
+  if(['PLAY_AGAIN','END_GAME'].includes(action)) return state.screen === 'quizRoundResult' && player.name === state.questioner;
   return false;
 }
-
 function handleGuestMessage(data, conn){
   if(data.type === 'JOIN'){
     const name = cleanNickname(String(data.name || ''));
-    if(!name){
-      conn.send({type:'JOIN_ERROR', message:'ニックネームを入力してください。'});
-      return;
-    }
-    if(state.players.some(player=>player.id === conn.peer)){
-      conn.send({type:'SYNC_STATE', state:sharedState()});
-      return;
-    }
-    if(state.players.some(player=>player.name === name)){
-      conn.send({type:'JOIN_ERROR', message:'同じニックネームが使われています。別の名前で入り直してください。'});
-      return;
-    }
-    if(state.players.length >= 10){
-      conn.send({type:'JOIN_ERROR', message:'この部屋は満員です。'});
-      return;
-    }
-    if(!['roomCreate','waitingRoom'].includes(state.screen)){
-      conn.send({type:'JOIN_ERROR', message:'この部屋はすでにゲームを開始しています。'});
-      return;
-    }
-    state.players.push({id:conn.peer, name});
-    state.participants = state.players.map(player=>player.name);
-    broadcastState();
-    refreshRoomDisplay();
-    return;
+    if(!name){ conn.send({type:'JOIN_ERROR', message:'ニックネームを入力してください。'}); return; }
+    if(state.players.some(player=>player.id === conn.peer)){ conn.send({type:'SYNC_STATE', state:sharedState()}); return; }
+    if(state.players.some(player=>player.name === name)){ conn.send({type:'JOIN_ERROR', message:'同じニックネームが使われています。別の名前で入り直してください。'}); return; }
+    if(state.players.length >= 10){ conn.send({type:'JOIN_ERROR', message:'この部屋は満員です。'}); return; }
+    if(!['roomCreate','waitingRoom'].includes(state.screen)){ conn.send({type:'JOIN_ERROR', message:'すでにゲームを開始しています。'}); return; }
+    state.players.push({id:conn.peer, name}); state.participants = state.players.map(player=>player.name);
+    broadcastState(); refreshRoomDisplay(); return;
   }
-  if(data.type === 'ACTION' && isAllowed(data.action, conn.peer)){
-    performAction(data.action);
-  }
+  if(data.type === 'ACTION' && isAllowed(data.action, conn.peer)){ performAction(data.action); }
 }
-
-function requestAction(action){
-  if(state.isHost){
-    performAction(action);
-  } else if(hostConnection && hostConnection.open){
-    hostConnection.send({type:'ACTION', action});
-  }
-}
-
+function requestAction(action){ if(state.isHost){ performAction(action); } else if(hostConnection && hostConnection.open){ hostConnection.send({type:'ACTION', action}); } }
 function performAction(action){
   if(!state.isHost) return;
   if(action === 'CHANGE_QUESTION'){
-    //if(state.changeCount >= 2) return;
-    //state.changeCount++;
-    const options = QUESTIONS.filter(createQuestion=>createQuestion() !== state.question);
-    state.question = options[Math.floor(Math.random()*options.length)]();
-    broadcastState();
-    render();
-  } else if(action === 'DECIDE_QUESTION'){
-    clearInterval(state.prepHandle);
-    state.quizTimer = state.roundTimeTotal;
-    go('quizActive');
-  } else if(action === 'HINT'){
-    state.hintUsed = true;
-    broadcastState();
-    render();
-  } else if(action === 'JUDGE_CORRECT'){
-    handleCorrectAnswer();
-  } else if(action === 'JUDGE_WRONG'){
-    broadcastState();
-  } else if(action === 'PLAY_AGAIN'){
-    state.history.push({questioner:state.questioner, question:state.question, cleared:state.cleared});
-    state.quizIndex++;
-    startQuizRound();
-  } else if(action === 'END_GAME'){
-    state.history.push({questioner:state.questioner, question:state.question, cleared:state.cleared});
-    go('finalResult');
-  }
+    const options = QUESTIONS.filter(createQuestion=>createQuestion() !== state.question); state.question = options[Math.floor(Math.random()*options.length)](); broadcastState(); render();
+  } else if(action === 'DECIDE_QUESTION'){ clearInterval(state.prepHandle); state.quizTimer = state.roundTimeTotal; go('quizActive');
+  } else if(action === 'HINT'){ state.hintUsed = true; broadcastState(); render();
+  } else if(action === 'JUDGE_CORRECT'){ handleCorrectAnswer();
+  } else if(action === 'JUDGE_WRONG'){ broadcastState();
+  } else if(action === 'PLAY_AGAIN'){ state.history.push({questioner:state.questioner, question:state.question, cleared:state.cleared}); state.quizIndex++; startQuizRound();
+  } else if(action === 'END_GAME'){ state.history.push({questioner:state.questioner, question:state.question, cleared:state.cleared}); go('finalResult'); }
 }
 function showIgnite(){
-  const overlay = document.createElement('div');
-  overlay.className = 'ignite-overlay';
-  overlay.innerHTML = `<div class="ignite-text">🔥 点火！</div>`;
-  document.body.appendChild(overlay);
+  const overlay = document.createElement('div'); overlay.className = 'ignite-overlay';
+  overlay.innerHTML = `<div class="ignite-text"><span class="icon-lg">${SVGS.sparkHead}</span> 点火！</div>`; document.body.appendChild(overlay);
   setTimeout(()=>overlay.remove(), 1500);
 }
-
-function cleanNickname(value){
-  return value.replace(/[<>&"'`]/g, '').trim().slice(0,10);
-}
+function cleanNickname(value){ return value.replace(/[<>&"'`]/g, '').trim().slice(0,10); }
 
 /* ---------- 1. タイトル ---------- */
 function screenTitle(){
   const node = el(`
     <div class="screen">
-      <div class="sunburst-wrap" style="text-align:center; padding:54px 0 30px;">
-        <h1 class="tv-title" style="font-size:38px; margin:0 0 6px;">アイスボンバー</h1>
-        <p class="sub" style="margin-top:8px;">相手を知りながら緊張をぶっ壊せ！<br>爆弾を回して、最後は氷をブレイク。</p>
+      <div style="text-align:center; padding:30px 0 10px;">
+        <div class="title-logo">ICE<br><span>BOMBER</span></div>
+        <p class="sub">友達の意外な一面を知る<br>パーティーゲーム！</p>
       </div>
-      <div class="hazard-tape"></div>
-      <div class="card" style="text-align:center; padding:26px 20px; margin-top:14px;">
-        <div class="frost-bomb" style="margin-bottom:10px;">💣</div>
+      <div class="card" style="text-align:center;">
+        ${SVGS.bombLarge}
         <button class="btn btn-primary" id="start">はじめる</button>
       </div>
     </div>
@@ -1232,63 +673,39 @@ function screenNickname(){
       <h1 class="page-title">名前を入力してね</h1>
       <p class="sub">テーブルではこの名前で表示されます<br>※1部屋につき最大10人まで参加可能です</p>
       <div class="card">
-        <div class="field">
+        <div class="field" style="margin-bottom: 24px;">
           <label class="field-label">ニックネーム</label>
           <input type="text" id="nick" placeholder="例：たくみ" maxlength="10" value="${state.nickname}">
         </div>
         <div class="choice-grid">
           <div class="choice-card" id="mkRoom">
-            <span class="ic">🔑</span>
+            <span class="ic"><span class="icon-lg" style="color:var(--yellow);">${SVGS.key}</span></span>
             <span class="lbl">部屋を作る</span>
           </div>
           <div class="choice-card" id="joinRoom">
-            <span class="ic">🚪</span>
+            <span class="ic"><span class="icon-lg" style="color:var(--primary);">${SVGS.door}</span></span>
             <span class="lbl">部屋に入る</span>
           </div>
         </div>
       </div>
     </div>
   `);
-  node.querySelector('#back').onclick = ()=>{
-    destroyPeer();
-    go('title');
-  };
+  node.querySelector('#back').onclick = ()=>{ destroyPeer(); go('title'); };
   node.querySelector('#mkRoom').onclick = ()=>{
-    const v = cleanNickname(node.querySelector('#nick').value);
-    if(!v){ alert('ニックネームを入力してください'); return; }
+    const v = cleanNickname(node.querySelector('#nick').value); if(!v){ alert('ニックネームを入力してください'); return; }
     state.nickname = v; state.isHost = true;
-    node.querySelector('#mkRoom').style.pointerEvents = 'none';
-    node.querySelector('#mkRoom').style.opacity = '.55';
-    node.querySelector('#mkRoom .lbl').textContent = '部屋を準備中…';
+    node.querySelector('#mkRoom').style.pointerEvents = 'none'; node.querySelector('#mkRoom').style.opacity = '.55'; node.querySelector('#mkRoom .lbl').textContent = '準備中…';
     createPeerRoom();
   };
   node.querySelector('#joinRoom').onclick = ()=>{
-    const v = cleanNickname(node.querySelector('#nick').value);
-    if(!v){ alert('ニックネームを入力してください'); return; }
-    state.nickname = v; state.isHost = false;
-    state.players = [];
-    state.participants = [];
-    go('roomJoin');
+    const v = cleanNickname(node.querySelector('#nick').value); if(!v){ alert('ニックネームを入力してください'); return; }
+    state.nickname = v; state.isHost = false; state.players = []; state.participants = []; go('roomJoin');
   };
   return node;
 }
-function genCode(){
-  return String(Math.floor(100000 + Math.random()*900000));
-}
-
+function genCode(){ return String(Math.floor(100000 + Math.random()*900000)); }
 async function copyRoomCode(code){
-  try{
-    await navigator.clipboard.writeText(code);
-  } catch(error){
-    const input = document.createElement('textarea');
-    input.value = code;
-    input.style.position = 'fixed';
-    input.style.opacity = '0';
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand('copy');
-    input.remove();
-  }
+  try{ await navigator.clipboard.writeText(code); } catch(error){ const input = document.createElement('textarea'); input.value = code; input.style.position = 'fixed'; input.style.opacity = '0'; document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove(); }
 }
 
 /* ---------- 3a. あいことば作成（ホスト） ---------- */
@@ -1302,24 +719,16 @@ function screenRoomCreate(){
       <div class="card">
         <label class="field-label">あいことば</label>
         <div class="code-display" id="hostRoomCode">${state.roomCode || '準備中…'}</div>
-        <button class="btn btn-secondary" id="copyRoomCode" style="margin-top:12px;"> あいことばをコピー</button>
+        <button class="btn btn-secondary" id="copyRoomCode" style="margin-top:12px;"><span class="icon">${SVGS.clipboard}</span> あいことばをコピー</button>
         <p class="demo-note">参加者は同じサイトを開き、このあいことばで入室してください</p>
-        <div class="btn btn-secondary" id="hostParticipantCount" style="margin-top:14px; cursor:default;">👥 ${state.participants.length}人が入室中(最大10人)</div>
+        <div class="btn btn-secondary" id="hostParticipantCount" style="margin-top:14px; cursor:default;"><span class="icon">${SVGS.people}</span> ${state.participants.length}人が入室中(最大10人)</div>
       </div>
       <button class="btn btn-primary" id="confirm" ${state.participants.length < 2 ? 'disabled' : ''}>部屋を確定する</button>
     </div>
   `);
   node.querySelector('#back').onclick = ()=>{ destroyPeer(); go('nickname'); };
-  node.querySelector('#copyRoomCode').onclick = async event=>{
-    await copyRoomCode(state.roomCode);
-    const button = event.currentTarget;
-    button.textContent = 'コピーしました';
-    setTimeout(()=>{ button.textContent = 'あいことばをコピー'; }, 1600);
-  };
-  node.querySelector('#confirm').onclick = ()=>{
-    if(state.participants.length < 2){ alert('参加者が入室するまで待ってください'); return; }
-    go('waitingRoom');
-  };
+  node.querySelector('#copyRoomCode').onclick = async event=>{ await copyRoomCode(state.roomCode); const button = event.currentTarget; button.innerHTML = `<span class="icon">${SVGS.check}</span> コピーしました`; setTimeout(()=>{ button.innerHTML = `<span class="icon">${SVGS.clipboard}</span> あいことばをコピー`; }, 1600); };
+  node.querySelector('#confirm').onclick = ()=>{ if(state.participants.length < 2){ alert('参加者が入室するまで待ってください'); return; } go('waitingRoom'); };
   return node;
 }
 
@@ -1333,21 +742,15 @@ function screenRoomJoin(){
       <p class="sub">主催者から共有されたあいことばを入力してください</p>
       <div class="card">
         <label class="field-label">あいことば</label>
-        <input type="text" id="code" inputmode="numeric" maxlength="6" placeholder="6桁のあいことば">
+        <input type="text" id="code" inputmode="numeric" maxlength="6" placeholder="6桁の数字">
       </div>
       <button class="btn btn-primary" id="enter">入室する</button>
-      <p class="demo-note">主催者の画面に表示された6桁のあいことばを入力してください</p>
     </div>
   `);
   node.querySelector('#back').onclick = ()=>{ destroyPeer(); go('nickname'); };
   node.querySelector('#enter').onclick = ()=>{
-    const v = node.querySelector('#code').value.trim();
-    if(!/^\d{6}$/.test(v)){ alert('6桁のあいことばを入力してください'); return; }
-    state.roomCode = v;
-    node.querySelector('#enter').disabled = true;
-    node.querySelector('#enter').textContent = '接続中…';
-    connectToRoom(v);
-    go('waitingRoom');
+    const v = node.querySelector('#code').value.trim(); if(!/^\d{6}$/.test(v)){ alert('6桁のあいことばを入力してください'); return; }
+    state.roomCode = v; node.querySelector('#enter').disabled = true; node.querySelector('#enter').textContent = '接続中…'; connectToRoom(v); go('waitingRoom');
   };
   return node;
 }
@@ -1357,6 +760,7 @@ function screenWaitingRoom(){
   const waitingForConnection = !state.isHost && state.participants.length === 0;
   const node = el(`
     <div class="screen">
+      <button class="back-link" id="leaveRoom">← ${state.isHost ? '部屋を解散する' : '部屋を抜ける'}</button>
       <div class="eyebrow">ROOM · ${state.roomCode}</div>
       <h1 class="page-title">入室メンバー</h1>
       <p class="sub">${waitingForConnection ? '部屋へ接続しています…' : `${state.participants.length}人が部屋にいます`}</p>
@@ -1364,38 +768,50 @@ function screenWaitingRoom(){
         <div class="card">
           <label class="field-label">あいことば</label>
           <div class="code-display">${state.roomCode}</div>
-          <button class="btn btn-secondary" id="copyRoomCode" style="margin-top:12px;"> あいことばをコピー</button>
+          <button class="btn btn-secondary" id="copyRoomCode" style="margin-top:12px;"><span class="icon">${SVGS.clipboard}</span> あいことばをコピー</button>
           <p class="demo-note">このあいことばを参加者へ共有してください</p>
         </div>
       ` : ''}
       <div class="card">
         <ul class="plist">
-          ${waitingForConnection ? '<li style="color:var(--text-dim);">接続中…</li>' : state.participants.map((p,i)=>`
+          ${waitingForConnection ? '<li style="color:var(--text-dim);">接続中…</li>' : state.participants.map(p=>`
             <li><div class="avatar">${p[0]}</div>${p}${(state.isHost && p===state.nickname) ? '<span class="host-tag">HOST</span>' : ''}</li>
           `).join('')}
         </ul>
       </div>
-      ${state.isHost ? `<button class="btn btn-primary" id="next" ${state.participants.length < 2 ? 'disabled' : ''}>このメンバーではじめる →</button>`
-        : `<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>`}
-      ${state.isHost ? `<p class="demo-note">主催者だけが次に進めます</p>` : ''}
+      ${state.isHost ? `<button class="btn btn-primary" id="next" ${state.participants.length < 2 ? 'disabled' : ''}>このメンバーではじめる →</button>` : `<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>`}
     </div>
   `);
+  node.querySelector('#leaveRoom').onclick = ()=>{
+    const message = state.isHost ? '部屋を解散しますか？' : '部屋を抜けますか？';
+    if(!confirm(message)) return;
+    if(state.isHost){
+      guestConnections.filter(conn=>conn.open).forEach(conn=>conn.send({type:'ROOM_CLOSED'}));
+      setTimeout(()=>{
+        resetRoomSession('leaving');
+        state.isHost = false;
+        go('nickname');
+      }, 120);
+    } else {
+      resetRoomSession('leaving');
+      state.isHost = false;
+      go('nickname');
+    }
+  };
   const copyBtn = node.querySelector('#copyRoomCode');
   if(copyBtn) copyBtn.onclick = async event=>{
     await copyRoomCode(state.roomCode);
     const button = event.currentTarget;
-    button.textContent = '✅ コピーしました';
-    setTimeout(()=>{ button.textContent = '📋 あいことばをコピー'; }, 1600);
+    button.innerHTML = `<span class="icon">${SVGS.check}</span> コピーしました`;
+    setTimeout(()=>{ button.innerHTML = `<span class="icon">${SVGS.clipboard}</span> あいことばをコピー`; }, 1600);
   };
-  const nextBtn = node.querySelector('#next');
-  if(nextBtn) nextBtn.onclick = ()=>go('modeSelect');
+  const nextBtn = node.querySelector('#next'); if(nextBtn) nextBtn.onclick = ()=>go('modeSelect');
   return node;
 }
 
 /* ---------- 5. 何をするか選択 ---------- */
 function screenModeSelect(){
-  const introTime = state.participants.length * 0.5; // 分
-  const quizTime = state.participants.length * 1.5; // 分（1問あたり目安）
+  const introTime = state.participants.length * 0.5; const quizTime = state.participants.length * 1.5;
   const node = el(`
     <div class="screen">
       <div class="eyebrow">ROOM · ${state.roomCode}</div>
@@ -1405,38 +821,24 @@ function screenModeSelect(){
         <div class="box"><div class="n">約${introTime}分</div><div class="l">自己紹介（30秒×${state.participants.length}人）</div></div>
         <div class="box"><div class="n">約${quizTime}分</div><div class="l">クイズ1周（1問30秒目安）</div></div>
       </div>
-      <div class="card" style="cursor:pointer;" id="withIntro">
-        <div style="display:flex; align-items:center; gap:14px;">
-          <div style="font-size:28px;">🗣️</div>
-          <div>
-            <div style="font-family:var(--font-display); font-weight:800; font-size:15px;">自己紹介してからクイズ</div>
-            <div style="font-size:12px; color:var(--text-dim); margin-top:2px;">初対面が多いときにおすすめ</div>
-          </div>
+      <div class="choice-card" style="display:flex; align-items:center; gap:16px; text-align:left; padding:20px; margin-bottom:14px;" id="withIntro">
+        <div style="font-size:42px; width:50px; flex-shrink:0;">${SVGS.chat}</div>
+        <div>
+          <div style="font-family:var(--font-display); font-weight:800; font-size:15px; color:var(--text-main);">自己紹介してからクイズ</div>
+          <div style="font-size:12px; color:var(--text-dim); margin-top:2px;">初対面が多いときにおすすめ</div>
         </div>
       </div>
-      <div class="card" style="cursor:pointer;" id="quizOnly">
-        <div style="display:flex; align-items:center; gap:14px;">
-          <div style="font-size:28px;">💣</div>
-          <div>
-            <div style="font-family:var(--font-display); font-weight:800; font-size:15px;">クイズだけ</div>
-            <div style="font-size:12px; color:var(--text-dim); margin-top:2px;">すぐに盛り上がりたいときに</div>
-          </div>
+      <div class="choice-card" style="display:flex; align-items:center; gap:16px; text-align:left; padding:20px;" id="quizOnly">
+        <div style="font-size:42px; width:50px; flex-shrink:0;">${SVGS.bomb}</div>
+        <div>
+          <div style="font-family:var(--font-display); font-weight:800; font-size:15px; color:var(--text-main);">クイズだけ</div>
+          <div style="font-size:12px; color:var(--text-dim); margin-top:2px;">すぐに盛り上がりたいときに</div>
         </div>
       </div>
     </div>
   `);
-  node.querySelector('#withIntro').onclick = ()=>{
-    if(!state.isHost) return;
-    state.mode = 'intro_quiz';
-    state.introIndex = 0;
-    go('introPrep');
-  };
-  node.querySelector('#quizOnly').onclick = ()=>{
-    if(!state.isHost) return;
-    state.mode = 'quiz_only';
-    state.questioner = null;
-    go('quizStartGate');
-  };
+  node.querySelector('#withIntro').onclick = ()=>{ if(!state.isHost) return; state.mode = 'intro_quiz'; state.introIndex = 0; go('introPrep'); };
+  node.querySelector('#quizOnly').onclick = ()=>{ if(!state.isHost) return; state.mode = 'quiz_only'; state.questioner = null; go('quizStartGate'); };
   return node;
 }
 
@@ -1445,33 +847,32 @@ function screenIntroPrep(){
   const node = el(`
     <div class="screen">
       <div class="eyebrow">SELF INTRODUCTION</div>
-      <h1 class="page-title">テーブル位置を決めました</h1>
+      <h1 class="page-title">テーブル位置を決定！</h1>
       <p class="sub">この順番で、1人30秒ずつ自己紹介していきます</p>
-      <div class="podium-stage">${renderPodiums(state.participants, -1)}</div>
-      ${state.isHost ? '<button class="btn btn-primary" id="startIntro">自己紹介をはじめる</button>' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>'}
+      <div class="podium-stage">${renderIntroPodiums(state.participants, -1)}</div>
+      ${state.isHost ? '<button class="btn btn-primary" id="startIntro" style="margin-top:10px;">自己紹介をはじめる</button>' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px; margin-top:10px;">主催者の開始を待っています…</div>'}
     </div>
   `);
   const startButton = node.querySelector('#startIntro');
-  if(startButton) startButton.onclick = ()=>{
-      state.introIndex = 0;
-      state.introTimer = 30;
-      go('introRunning');
-    };
+  if(startButton) startButton.onclick = ()=>{ state.introIndex = 0; state.introTimer = 30; go('introRunning'); };
   return node;
 }
 
-function renderPodiums(names, activeIndex, doneSet, explodedSet){
+function renderIntroPodiums(names, activeIndex){
   const rows = names.map((name,i)=>{
-    const cls = ['podium'];
-    if(i===activeIndex) cls.push('active');
-    if(doneSet && doneSet.has(i)) cls.push('done');
-    if(explodedSet && explodedSet.has(i)) cls.push('exploded');
-    const isExploded = explodedSet && explodedSet.has(i);
+    const cls = ['podium']; 
+    if(i===activeIndex) cls.push('active'); 
+    if(i<activeIndex) cls.push('done');
+    const isExploded = i<activeIndex;
+    // アイコンと名前を横並びにする + 縦幅を大きく
+    const iconCls = (i === activeIndex) ? 'melt-anim' : '';
+    const iconStyle = isExploded ? 'opacity:0.3;' : '';
     return `
       <div class="${cls.join(' ')}">
-
-        <div class="bomb-hang">${isExploded ? '🔨' : '🔨🧊'}</div>
-        <div class="stand"><div class="stand-name">${name}</div></div>
+        <div class="stand" style="display:flex; flex-direction:row; align-items:center; justify-content:center; gap:8px; padding:16px 8px; min-height:64px;">
+          <div class="${iconCls}" style="width:24px; height:24px; flex-shrink:0; ${iconStyle}">${SVGS.ice}</div>
+          <div class="stand-name" style="font-size:13px;">${name}</div>
+        </div>
       </div>`;
   }).join('');
   return `<div class="podium-row">${rows}</div><div class="podium-floor"></div>`;
@@ -1485,42 +886,22 @@ function screenIntroRunning(){
       <div class="eyebrow">SELF INTRODUCTION · ${state.introIndex+1} / ${state.participants.length}</div>
       <h1 class="page-title">${speaker} さんの番</h1>
       <p class="sub">好きなこと・最近の出来事など、なんでもOK</p>
-      <div class="podium-stage">${renderPodiums(state.participants, state.introIndex, new Set(Array.from({length:state.introIndex}, (_,i)=>i)))}</div>
-      <div class="card" style="text-align:center;">
-        <div id="timerNum" style="font-family:var(--font-mono); font-weight:800; font-size:46px; color:var(--fuse-1);">${state.introTimer}</div>
-        <div style="font-size:11px; color:var(--text-dim); font-family:var(--font-mono);">SEC LEFT</div>
+      <div class="podium-stage">${renderIntroPodiums(state.participants, state.introIndex)}</div>
+      <div class="card" style="text-align:center; margin-top:16px;">
+        <div id="timerNum" style="font-family:var(--font-mono); font-weight:800; font-size:46px; color:var(--primary);">${state.introTimer}</div>
+        <div style="font-size:12px; color:var(--text-dim); font-family:var(--font-mono);">SEC LEFT</div>
       </div>
     </div>
   `);
-
   clearInterval(state.introTimerHandle);
   if(state.isHost) state.introTimerHandle = setInterval(()=>{
-    state.introTimer--;
-    const numEl = document.getElementById('timerNum');
-    if(numEl){
-      numEl.textContent = state.introTimer;
-      if(state.introTimer <= 5){ numEl.style.color = 'var(--bad)'; }
-    }
-    if(state.introTimer <= 0){
-      clearInterval(state.introTimerHandle);
-      advanceIntro();
-    } else {
-      broadcastState(false);
-    }
+    state.introTimer--; const numEl = document.getElementById('timerNum');
+    if(numEl){ numEl.textContent = state.introTimer; if(state.introTimer <= 5) numEl.style.color = 'var(--bad)'; }
+    if(state.introTimer <= 0){ clearInterval(state.introTimerHandle); advanceIntro(); } else { broadcastState(false); }
   }, 1000);
-
   return node;
 }
-function advanceIntro(){
-  state.introIndex++;
-  if(state.introIndex >= state.participants.length){
-    state.questioner = null;
-    go('quizStartGate');
-  } else {
-    state.introTimer = 30;
-    go('introRunning');
-  }
-}
+function advanceIntro(){ state.introIndex++; if(state.introIndex >= state.participants.length){ state.questioner = null; go('quizStartGate'); } else { state.introTimer = 30; go('introRunning'); } }
 
 /* ---------- 8. クイズ開始ゲート ---------- */
 function screenQuizStartGate(){
@@ -1530,52 +911,51 @@ function screenQuizStartGate(){
     <div class="screen">
       <div class="eyebrow">QUIZ GAME</div>
       <h1 class="page-title">クイズゲーム、はじめます</h1>
-      <p class="sub">1問につき、出題者以外の全員が同じ問題に順番に挑戦します。正解するたびに爆弾が隣の人へ。全員が答え終わったら――右端のアイスブロックに命中してクリアです。タイマーは1問を通してひとつだけ。</p>
+      <p class="sub">1問につき、出題者以外の全員が順番に挑戦します。<br>全員が答え終わったら右端のアイスブロックに命中してクリア！</p>
       <div class="card" style="text-align:center; padding:30px 20px;">
-        <div style="font-size:40px; margin-bottom:8px;">💣 → 🧊</div>
-        <div style="font-family:var(--font-display); font-weight:800;">出題者を選んでください</div>
+        <div style="margin-bottom:16px; display:flex; justify-content:center; align-items:center; height: 60px;">
+           <div style="position:relative; width:50px; height:50px; z-index:2;">
+              <div style="position:absolute; inset:0; animation: tBombAnim 3s infinite;">${SVGS.bomb}</div>
+              <div style="position:absolute; inset:-10px; animation: tExplAnim 3s infinite;">${SVGS.explosion}</div>
+           </div>
+           <div style="position:relative; width:50px; height:50px; margin-left:10px; z-index:1; animation: tIceAnim 3s infinite; transform-origin:bottom;">
+              ${SVGS.ice}
+           </div>
+        </div>
+        <div style="font-family:var(--font-display); font-weight:800;">最初の出題者をランダムで決めます</div>
+        ${state.isHost ? `<button class="btn btn-secondary" id="randomQuestioner" style="margin-top:14px;">
+          <span class="icon">${SVGS.refresh}</span> ${selectedQuestioner ? 'もう一度ランダムで決める' : 'ランダムで決める'}
+        </button>` : ''}
         <div class="role-selector">
           <div>
             <div class="role-column-title">出題者</div>
-            <button class="questioner-slot ${selectedQuestioner ? 'selected' : 'empty'}"
-              id="questionerSlot" ${state.isHost && selectedQuestioner ? '' : 'disabled'}>
-              ${selectedQuestioner || 'ここに選択'}
+            <button class="questioner-slot ${selectedQuestioner ? 'selected' : 'empty'}" disabled>
+              ${selectedQuestioner || '未決定'}
             </button>
           </div>
           <div>
             <div class="role-column-title">回答者</div>
             <div class="answerer-list">
-              ${others.map(name=>`
-                <button class="answerer-option" data-name="${name}" ${state.isHost ? '' : 'disabled'}>${name}</button>
-              `).join('')}
+              ${others.map(name=>`<button class="answerer-option" disabled>${name}</button>`).join('')}
             </div>
           </div>
         </div>
         <div style="font-size:13px; color:var(--text-dim); line-height:1.7;">
-          ${selectedQuestioner
-            ? '左の名前をクリックすると選び直せます'
-            : state.isHost ? '右側の名前をクリックしてください' : 'ホストが出題者を選んでいます…'}
+          ${selectedQuestioner ? '選ばれた人以外の全員が回答者です' : state.isHost ? 'ボタンを押して決めてください' : 'ホストが出題者を決めています…'}
         </div>
       </div>
       ${state.isHost ? `<button class="btn btn-primary" id="start" ${selectedQuestioner ? '' : 'disabled'}>スタート</button>` : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">主催者の開始を待っています…</div>'}
     </div>
   `);
-  node.querySelectorAll('.answerer-option').forEach(button=>{
-    button.onclick = ()=>{
-      if(!state.isHost) return;
-      state.questioner = button.dataset.name;
-      broadcastState();
-      render(true);
-    };
-  });
-  const questionerSlot = node.querySelector('#questionerSlot');
-  if(questionerSlot && state.isHost && selectedQuestioner){
-    questionerSlot.onclick = ()=>{
-      state.questioner = null;
-      broadcastState();
-      render(true);
-    };
-  }
+  const randomButton = node.querySelector('#randomQuestioner');
+  if(randomButton) randomButton.onclick = ()=>{
+    const candidates = state.participants.length > 1
+      ? state.participants.filter(name=>name !== selectedQuestioner)
+      : state.participants;
+    state.questioner = candidates[Math.floor(Math.random()*candidates.length)];
+    broadcastState();
+    render(true);
+  };
   const startButton = node.querySelector('#start');
   if(startButton) startButton.onclick = ()=>{
     if(!state.questioner) return;
@@ -1586,20 +966,11 @@ function screenQuizStartGate(){
   };
   return node;
 }
-
 function startQuizRound(){
   const qi = state.quizIndex % state.participants.length;
-  state.questioner = state.participants[qi];
-  state.answererOrder = state.participants.filter(p => p !== state.questioner);
-  state.bombPosition = 0;
-  state.question = QUESTIONS[state.quizIndex % QUESTIONS.length]();
-  state.changeCount = 0;
-  state.prepTimer = 10;
-  state.hintUsed = false;
-  state.hintText = '';
-  state.cleared = null;
+  state.questioner = state.participants[qi]; state.answererOrder = state.participants.filter(p => p !== state.questioner);
+  state.bombPosition = 0; state.question = QUESTIONS[state.quizIndex % QUESTIONS.length](); state.changeCount = 0; state.prepTimer = 10; state.hintUsed = false; state.hintText = ''; state.cleared = null;
   state.viewAs = state.nickname === state.questioner ? 'questioner' : 'answerer';
-  // 1問を通して使う共通タイマー（人数に応じて少し伸ばす）
   state.roundTimeTotal = 15 + state.answererOrder.length * 10;
   go('quizPrep');
 }
@@ -1610,90 +981,50 @@ function screenQuizPrep(){
   const node = el(`
     <div class="screen">
       <div class="eyebrow alarm"><span class="siren-dot"></span>QUIZ PREP · <span id="prepSec">${state.prepTimer}</span>s以内に決定</div>
-      <div class="role-badge q">✏️ 出題者：${state.questioner}</div>
-      <h1 class="page-title" style="font-size:20px;">問題を選んでください</h1>
-      <p class="sub" style="margin-top:-14px;">回答者（出題者以外の全員）：${state.answererOrder.join(' → ')}</p>
+      <div class="role-badge q"><span class="icon" style="color:var(--primary);">${SVGS.pencil}</span> 出題者：${state.questioner}</div>
+      <h1 class="page-title" style="font-size:22px;">問題を選んでください</h1>
+      <p class="sub" style="margin-top:-10px;">回答者：${state.answererOrder.join(' → ')}</p>
       <div class="qcard">
         <div class="qn">QUESTION</div>
         <div class="qtext" id="qtext">${state.question}</div>
       </div>
       <div class="btn-row" style="display:${amQuestioner ? 'flex' : 'none'}">
-        <button class="btn btn-secondary" id="change">🔄 問題を変更</button>
+        <button class="btn btn-secondary" id="change"><span class="icon">${SVGS.refresh}</span> 問題を変更</button>
       </div>
-      <button class="btn btn-primary" id="decide" style="margin-top:10px; display:${amQuestioner ? 'flex' : 'none'};">この問題で決定</button>
+      <button class="btn btn-primary" id="decide" style="margin-top:14px; display:${amQuestioner ? 'flex' : 'none'};">この問題で決定</button>
       ${amQuestioner ? '' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px; margin-top:10px;">出題者が問題を選んでいます…</div>'}
-      <p class="demo-note">10秒経つと自動でこの問題に決定します。決定後は${state.roundTimeTotal}秒の共通タイマーがスタートします。</p>
     </div>
   `);
-
-  const changeBtn = node.querySelector('#change');
-  changeBtn.onclick = ()=>{
-    //if(state.changeCount >= 2){
-    //  alert('もう変更できません');
-    //  return;
-    //}
-    requestAction('CHANGE_QUESTION');
-  };
-  node.querySelector('#decide').onclick = ()=>{
-    requestAction('DECIDE_QUESTION');
-  };
-
+  node.querySelector('#change').onclick = ()=>requestAction('CHANGE_QUESTION');
+  node.querySelector('#decide').onclick = ()=>requestAction('DECIDE_QUESTION');
   clearInterval(state.prepHandle);
   if(state.isHost) state.prepHandle = setInterval(()=>{
-    state.prepTimer--;
-    const sec = node.querySelector('#prepSec');
-    if(sec) sec.textContent = state.prepTimer;
-    if(state.prepTimer<=0){
-      clearInterval(state.prepHandle);
-      state.quizTimer = state.roundTimeTotal;
-      go('quizActive');
-    } else {
-      broadcastState(false);
-    }
+    state.prepTimer--; const sec = node.querySelector('#prepSec'); if(sec) sec.textContent = state.prepTimer;
+    if(state.prepTimer<=0){ clearInterval(state.prepHandle); state.quizTimer = state.roundTimeTotal; go('quizActive'); } else { broadcastState(false); }
   },1000);
-
   return node;
 }
 
 /* ---------- 10. クイズ本番 ---------- */
-// 最初は青と赤。人数が増えるたび、positionの位置へ中間色を追加する。
 const LANE_COLOR_STOPS = [
-  {position:0,     hex:'#238bff', rgb:'35 139 255'},  // 青
-  {position:1,     hex:'#df3f45', rgb:'223 63 69'},   // 赤
-  {position:.5,    hex:'#f2d13d', rgb:'242 209 61'},  // 黄
-  {position:.25,   hex:'#3dbb55', rgb:'61 187 85'},   // 緑
-  {position:.75,   hex:'#f07b2d', rgb:'240 123 45'},  // オレンジ
-  {position:.125,  hex:'#20b8c5', rgb:'32 184 197'},  // 青緑
-  {position:.375,  hex:'#9acb3c', rgb:'154 203 60'},  // 黄緑
-  {position:.625,  hex:'#f3a832', rgb:'243 168 50'},  // 琥珀
-  {position:.875,  hex:'#ec5438', rgb:'236 84 56'},   // 朱色
-  {position:.0625, hex:'#24a5e3', rgb:'36 165 227'}   // 水色
+  {position:0, hex:'#00c3ff', rgb:'0 195 255'}, {position:1, hex:'#ff6b6b', rgb:'255 107 107'}, {position:.5, hex:'#ffcf33', rgb:'255 207 51'},
+  {position:.25, hex:'#4ade80', rgb:'74 222 128'}, {position:.75, hex:'#f97316', rgb:'249 115 22'}, {position:.125, hex:'#2dd4bf', rgb:'45 212 191'},
+  {position:.375, hex:'#a3e635', rgb:'163 230 53'}, {position:.625, hex:'#fbbf24', rgb:'251 191 36'}, {position:.875, hex:'#fb7185', rgb:'251 113 133'}
 ];
-
-function buildLaneColors(count){
-  return LANE_COLOR_STOPS.slice(0,count).sort((a,b)=>a.position-b.position);
-}
+function buildLaneColors(count){ return LANE_COLOR_STOPS.slice(0,count).sort((a,b)=>a.position-b.position); }
 
 function renderStageTrack(names, activeIndex){
   const laneColors = buildLaneColors(names.length);
   const podiums = names.map((name,i)=>{
-    const cls = ['podium'];
-    if(i===activeIndex) cls.push('active');
-    if(i<activeIndex) cls.push('passed');
+    const cls = ['podium']; if(i===activeIndex) cls.push('active'); if(i<activeIndex) cls.push('passed');
     const color = laneColors[i];
-    const laneContent = i < activeIndex
-      ? '<div class="cylinder-check">✓</div>'
-      : i === activeIndex
-      ? '<div class="roaming-bomb" id="roamingBomb">💣</div>'
-      : '';
+    const laneContent = i < activeIndex ? `<div class="cylinder-check"><span class="icon" style="color:${color.hex};">${SVGS.check}</span></div>`
+      : i === activeIndex ? `<div class="roaming-bomb" id="roamingBomb"><span style="width:24px;height:24px;display:inline-block;">${SVGS.bomb}</span></div>` : '';
     const status = i < activeIndex ? '正解' : i === activeIndex ? '回答中' : '待機';
     return `
       <div class="${cls.join(' ')}" data-slot="${i}" style="--lane-color:${color.hex};--lane-rgb:${color.rgb}">
         <div class="cylinder-lane">${laneContent}</div>
-        <div class="stand">
-          <div class="stand-name">${name}</div>
-          <div class="lane-status">${status}</div>
-        </div>
+        <div class="stand"><div class="stand-name">${name}</div><div class="lane-status">${status}</div></div>
       </div>`;
   }).join('');
   return `
@@ -1701,19 +1032,16 @@ function renderStageTrack(names, activeIndex){
       <div class="stage-track" id="stageTrack">
         ${podiums}
         <div class="ice-block" id="iceBlock" data-slot="${names.length}">
-          <div class="ice-emoji">🧊</div>
+          <div class="ice-emoji"><span style="width:38px;height:38px;display:inline-block;">${SVGS.ice}</span></div>
           <div class="ice-label">ICE BLOCK</div>
         </div>
       </div>
     </div>`;
 }
 function positionBomb(){
-  const track = document.getElementById('stageTrack');
-  if(!track) return;
-  const targetSel = state.bombPosition >= state.answererOrder.length
-    ? '#iceBlock' : `.podium[data-slot="${state.bombPosition}"]`;
-  const target = track.querySelector(targetSel);
-  if(!target) return;
+  const track = document.getElementById('stageTrack'); if(!track) return;
+  const targetSel = state.bombPosition >= state.answererOrder.length ? '#iceBlock' : `.podium[data-slot="${state.bombPosition}"]`;
+  const target = track.querySelector(targetSel); if(!target) return;
   const scroller = track.closest('.stage-scroll');
   if(scroller){
     const targetCenter = target.offsetLeft + target.offsetWidth/2;
@@ -1721,25 +1049,15 @@ function positionBomb(){
     scroller.scrollLeft = Math.max(0, Math.min(maxScroll, targetCenter - scroller.clientWidth/2));
   }
 }
-
-/* 共通タイマーが減るほど、レールの中を爆弾がはっきり分かる速さで滑り落ちる（本家演出） */
-const BOMB_RAIL_START = 8;
-const BOMB_RAIL_TRAVEL = 76;
+const BOMB_RAIL_START = 8; const BOMB_RAIL_TRAVEL = 76;
 function updateBombDrop(animate = true){
-  const bomb = document.getElementById('roamingBomb');
-  if(!bomb) return;
-  const total = state.roundTimeTotal || 30;
-  const frac = Math.max(0, Math.min(1, state.quizTimer / total)); // 1=開始, 0=時間切れ
-  // 経過時間に比例させ、試験管の中を最初から最後まで一定速度で落とす
+  const bomb = document.getElementById('roamingBomb'); if(!bomb) return;
+  const total = state.roundTimeTotal || 30; const frac = Math.max(0, Math.min(1, state.quizTimer / total));
   const y = 1 - frac;
   if(!animate) bomb.style.transition = 'none';
   bomb.style.top = (BOMB_RAIL_START + y * BOMB_RAIL_TRAVEL) + 'px';
   bomb.classList.toggle('critical', state.quizTimer <= 5);
-  if(!animate){
-    requestAnimationFrame(()=>{
-      bomb.style.transition = 'top .92s linear';
-    });
-  }
+  if(!animate) requestAnimationFrame(()=>bomb.style.transition = 'top .92s linear');
 }
 
 function screenQuizActive(){
@@ -1751,29 +1069,26 @@ function screenQuizActive(){
   const node = el(`
     <div class="screen">
       <div class="eyebrow alarm"><span class="siren-dot"></span>QUIZ ACTIVE</div>
-      <div class="role-badge q" style="margin-bottom:8px;">✏️ 出題者：${state.questioner}（判定のみ・回答しない）</div>
-      <div class="qcard" style="margin-bottom:12px;">
+      <div class="role-badge q" style="margin-bottom:12px;"><span class="icon" style="color:var(--primary);">${SVGS.pencil}</span> 出題者：${state.questioner}（判定のみ）</div>
+      <div class="qcard" style="margin-bottom:14px;">
         <div class="qn">QUESTION</div>
         <div class="qtext">${state.question}</div>
       </div>
       <div class="hazard-tape"></div>
       <div class="podium-stage">
         <div class="studio-clock ${danger?'danger':''}" id="clockBox">
-          <div class="num" id="timerNum">${state.quizTimer}</div>
-          <div class="lbl">SEC LEFT</div>
+          <div class="num" id="timerNum">${state.quizTimer}</div><div class="lbl">SEC LEFT</div>
         </div>
         ${renderStageTrack(state.answererOrder, state.bombPosition)}
       </div>
       <div class="hazard-tape" style="margin-top:0;"></div>
       <div class="score-pill">
         <span>ゴールまで <b>${state.answererOrder.length - state.bombPosition}人</b></span>
-        <span class="chip">🎯 ${answerer}が回答中</span>
+        <span class="chip"><span class="icon" style="color:var(--primary);">${SVGS.target}</span> ${answerer}が回答中</span>
       </div>
-
       <div id="roleView"></div>
     </div>
   `);
-
   setTimeout(()=>{ positionBomb(); updateBombDrop(false); }, 0);
 
   function renderRoleView(){
@@ -1782,145 +1097,77 @@ function screenQuizActive(){
       wrap.innerHTML = `
         <div class="card">
           <p class="sub" style="margin-bottom:12px;">${answerer}さんの回答を判定してください</p>
-          ${state.hintUsed ? `<div class="hint-box">💡 ${answerer}さんがヒントを求めています。答えの頭文字などヒントを出してあげよう！</div>`:''}
+          ${state.hintUsed ? `<div class="hint-box"><span class="icon">${SVGS.bulb}</span> ${answerer}さんがヒントを求めています！</div>`:''}
           <div class="action-row">
             <button class="btn-circle btn-ok" id="ok">〇</button>
             <button class="btn-circle btn-ng" id="ng">×</button>
           </div>
-        </div>
-      `;
-      wrap.querySelector('#ok').onclick = onCorrect;
-      wrap.querySelector('#ng').onclick = onWrong;
+        </div>`;
+      wrap.querySelector('#ok').onclick = ()=>{ correctSound.currentTime=0; correctSound.play(); requestAction('JUDGE_CORRECT'); };
+      wrap.querySelector('#ng').onclick = ()=>{
+        wrongSound.currentTime=0; wrongSound.play(); requestAction('JUDGE_WRONG');
+        const flash = document.createElement('div'); flash.textContent = '❌ 不正解！同じ人が続けて回答します';
+        flash.style.cssText = 'color:var(--bad); font-size:12px; font-weight:800; text-align:center; margin-top:14px;';
+        wrap.appendChild(flash); setTimeout(()=>flash.remove(), 1400);
+      };
     } else if(state.viewAs === 'answerer') {
       wrap.innerHTML = `
         <div class="card" style="text-align:center;">
-          <p class="sub" style="margin-bottom:4px;">${answerer}さんの番です</p>
-          <p class="sub" style="margin-bottom:12px;">思いついたら口頭で答えてね</p>
-          ${state.hintUsed ? `<div class="hint-box">💡 ヒントをリクエスト中… 出題者からのヒントを待とう</div>` : `
-          <button class="btn btn-secondary" id="hintBtn">💡 ヒントをもらう</button>`}
-        </div>
-      `;
-      const hb = wrap.querySelector('#hintBtn');
-      if(hb) hb.onclick = ()=>requestAction('HINT');
+          <p class="sub" style="margin-bottom:6px; color:var(--primary); font-size:18px;">${answerer}さんの番です！</p>
+          <p class="sub" style="margin-bottom:14px;">思いついたら口頭で答えてね</p>
+          ${state.hintUsed ? `<div class="hint-box">ヒントをリクエスト中…</div>` : `<button class="btn btn-secondary" id="hintBtn"><span class="icon">${SVGS.bulb}</span> ヒントをもらう</button>`}
+        </div>`;
+      const hb = wrap.querySelector('#hintBtn'); if(hb) hb.onclick = ()=>requestAction('HINT');
     } else {
-      wrap.innerHTML = `
-        <div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">
-          ${answerer}さんが回答中です…
-        </div>
-      `;
+      wrap.innerHTML = `<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">${answerer}さんが回答中です…</div>`;
     }
   }
   renderRoleView();
 
-  function onCorrect(){
-    correctSound.currentTime = 0;
-    correctSound.play();
-    requestAction('JUDGE_CORRECT');
-  }
-  function onWrong(){
-    wrongSound.currentTime = 0;
-    wrongSound.play();
-    requestAction('JUDGE_WRONG');
-    const wrap = node.querySelector('#roleView');
-    const flash = document.createElement('div');
-    flash.textContent = '❌ 不正解！同じ人が続けて回答します';
-    flash.style.cssText = 'color:var(--bad); font-size:12px; text-align:center; margin-top:10px; font-family:var(--font-mono);';
-    wrap.appendChild(flash);
-    setTimeout(()=>flash.remove(), 1400);
-  }
   function triggerIceBreak(){
-    const ice = document.getElementById('iceBlock');
-    if(ice) ice.classList.add('shatter');
-    spawnShards();
-    setTimeout(()=>{
-      showIceBreak(()=>{ go('quizRoundResult', true); });
-    }, 260);
-  }
-  function spawnShards(){
-    const ice = document.getElementById('iceBlock');
-    if(!ice) return;
-    const bits = ['❄️','🧊','❄️','🧊','❄️','🧊'];
-    bits.forEach((b)=>{
-      const s = document.createElement('div');
-      s.className = 'shard';
-      s.textContent = b;
-      const dx = (Math.random()-0.5)*140;
-      const dy = -40 - Math.random()*70;
-      s.style.setProperty('--tx', dx+'px');
-      s.style.setProperty('--ty', dy+'px');
-      ice.appendChild(s);
-      setTimeout(()=>s.remove(), 750);
-    });
+    const ice = document.getElementById('iceBlock'); if(ice) ice.classList.add('shatter');
+    for(let i=0;i<6;i++){
+      const s = document.createElement('div'); s.className = 'shard'; s.innerHTML = SVGS.ice;
+      s.style.setProperty('--tx', ((Math.random()-0.5)*140)+'px'); s.style.setProperty('--ty', (-40-Math.random()*70)+'px');
+      ice.appendChild(s); setTimeout(()=>s.remove(), 750);
+    }
+    setTimeout(()=>{ showIceBreak(()=>{ go('quizRoundResult', true); }); }, 260);
   }
 
-  // 1問を通してひとつだけのタイマー：新しい問題のときだけ初期化し、
-  // 同じ問題中の再描画（正解して次の人へ／画面切替）では値を引き継ぐ
   clearInterval(state.quizHandle);
   if(state.isHost) state.quizHandle = setInterval(()=>{
-    state.quizTimer--;
-    const numEl = document.getElementById('timerNum');
-    const center = document.getElementById('clockBox');
-    if(numEl){
-      numEl.textContent = state.quizTimer;
-      if(state.quizTimer<=5 && center) center.classList.add('danger');
-    }
+    state.quizTimer--; const numEl = document.getElementById('timerNum'); const center = document.getElementById('clockBox');
+    if(numEl){ numEl.textContent = state.quizTimer; if(state.quizTimer<=5 && center) center.classList.add('danger'); }
     updateBombDrop();
     if(state.quizTimer<=0){
       clearInterval(state.quizHandle);
-      const podiums = node.querySelectorAll('.podium');
-      if(podiums[state.bombPosition]) podiums[state.bombPosition].classList.add('exploded');
-      state.cleared = false;
-      broadcastState();
-      broadcastEffect('explosion');
-      showExplosion(()=> go('quizRoundResult'));
-    } else {
-      broadcastState(false);
-    }
+      const podiums = node.querySelectorAll('.podium'); if(podiums[state.bombPosition]) podiums[state.bombPosition].classList.add('exploded');
+      state.cleared = false; broadcastState(); broadcastEffect('explosion'); showExplosion(()=> go('quizRoundResult'));
+    } else { broadcastState(false); }
   },1000);
 
   return node;
 }
 
 function handleCorrectAnswer(){
-  clearInterval(state.quizHandle);
-  state.bombPosition++;
-  state.hintUsed = false;
+  clearInterval(state.quizHandle); state.bombPosition++; state.hintUsed = false;
   if(state.bombPosition >= state.answererOrder.length){
-    state.cleared = true;
-    broadcastState();
-    broadcastEffect('iceBreak');
-    showIceBreak(()=>go('quizRoundResult'));
-  } else {
-    go('quizActive');
-  }
+    state.cleared = true; broadcastState(); broadcastEffect('iceBreak'); showIceBreak(()=>go('quizRoundResult'));
+  } else { go('quizActive'); }
 }
 
 function showExplosion(callback){
-  const overlay = document.createElement('div');
-  overlay.className = 'explosion-overlay';
-  overlay.innerHTML = `<div class="boom-text">💥<br>ドッカーン!!</div>`;
-  document.body.appendChild(overlay);
-  const app = document.getElementById('app');
-  app.classList.add('shake');
-  setTimeout(()=>{
-    overlay.remove();
-    app.classList.remove('shake');
-    callback();
-  }, 1500);
+  const overlay = document.createElement('div'); overlay.className = 'explosion-overlay';
+  overlay.innerHTML = `<div class="boom-text"><span class="icon-lg">${SVGS.explosion}</span><br>ドッカーン!!</div>`;
+  document.body.appendChild(overlay); const app = document.getElementById('app'); app.classList.add('shake');
+  setTimeout(()=>{ overlay.remove(); app.classList.remove('shake'); callback(); }, 1500);
 }
 
 function showIceBreak(callback){
-  const overlay = document.createElement('div');
-  overlay.className = 'icebreak-overlay';
-  overlay.innerHTML = `<div class="ice-text">🧊💥<br>アイスブレイク成功!!</div>`;
-  document.body.appendChild(overlay);
-  const app = document.getElementById('app');
-  app.classList.add('shake');
-  setTimeout(()=>{
-    overlay.remove();
-    app.classList.remove('shake');
-    callback();
-  }, 1500);
+  const overlay = document.createElement('div'); overlay.className = 'icebreak-overlay';
+  overlay.innerHTML = `<div class="ice-text"><span class="icon-lg">${SVGS.ice}</span><br>アイスブレイク成功!!</div>`;
+  document.body.appendChild(overlay); const app = document.getElementById('app'); app.classList.add('shake');
+  setTimeout(()=>{ overlay.remove(); app.classList.remove('shake'); callback(); }, 1500);
 }
 
 /* ---------- 11. 1問ごとの結果 ---------- */
@@ -1929,35 +1176,33 @@ function screenQuizRoundResult(){
   const node = el(`
     <div class="screen">
       <div class="result-hero">
-        <div style="font-size:44px; margin-bottom:8px;">${wasCorrect ? '🧊💥' : '💥'}</div>
+        <div style="font-size:44px; margin-bottom:8px; display:flex; justify-content:center; align-items:center; gap:8px;">
+          ${wasCorrect ? `<span style="width:44px;">${SVGS.ice}</span><span style="width:44px;">${SVGS.explosion}</span>` : `<span style="width:44px;">${SVGS.explosion}</span>`}
+        </div>
         <div class="stamp ${wasCorrect ? 'clear':'fail'}">${wasCorrect ? 'アイスブレイク成功！' : '時間切れ…'}</div>
       </div>
       <div class="card">
         ${wasCorrect ? `
-          <p class="sub" style="margin-bottom:6px;">出題者以外の全員が正解！${state.questioner}さんからひとこと</p>
-          <p style="font-size:14px; line-height:1.7;">「${state.question}」について、実は最近ハマったきっかけがあって……という感じで、答えを選んだ理由を話してもらいましょう。</p>
+          <p class="sub" style="margin-bottom:8px; color:var(--text-main);">出題者以外の全員が正解！</p>
+          <p style="font-size:14px; line-height:1.7; font-weight:700;">「${state.question}」について、${state.questioner}さんに答えを選んだ理由などを話してもらいましょう！</p>
         ` : `
-          <p class="sub" style="margin-bottom:6px;">${state.questioner}さんから正解発表</p>
-          <p style="font-size:14px; line-height:1.7;">時間内に全員が正解できませんでした。${state.questioner}さんに正解と、その理由を発表してもらいましょう。</p>
+          <p class="sub" style="margin-bottom:8px; color:var(--text-main);">${state.questioner}さんから正解発表</p>
+          <p style="font-size:14px; line-height:1.7; font-weight:700;">時間内に全員が正解できませんでした。${state.questioner}さんに正解と理由を発表してもらいましょう。</p>
         `}
       </div>
       <div class="score-pill">
         <span>答え終えた人数</span><b>${state.bombPosition} / ${state.answererOrder.length}</b>
       </div>
-      <p class="sub" style="margin:2px 0 12px;">もう一度あそぶ？（新しい問題・出題者に交代します）</p>
+      <p class="sub" style="margin:8px 0 16px; text-align:center;">もう一度あそぶ？</p>
       <div class="btn-row" style="display:${state.nickname === state.questioner ? 'flex' : 'none'}">
         <button class="btn btn-secondary" id="again">もう一度あそぶ</button>
-        <button class="btn btn-primary" id="end">もう終わりにする</button>
+        <button class="btn btn-primary" id="end">終わりにする</button>
       </div>
       ${state.nickname === state.questioner ? '' : '<div class="card" style="text-align:center; color:var(--text-dim); font-size:13px;">出題者の選択を待っています…</div>'}
     </div>
   `);
-  node.querySelector('#again').onclick = ()=>{
-    requestAction('PLAY_AGAIN');
-  };
-  node.querySelector('#end').onclick = ()=>{
-    requestAction('END_GAME');
-  };
+  node.querySelector('#again').onclick = ()=>requestAction('PLAY_AGAIN');
+  node.querySelector('#end').onclick = ()=>requestAction('END_GAME');
   return node;
 }
 
@@ -1967,14 +1212,14 @@ function screenFinalResult(){
   const node = el(`
     <div class="screen">
       <div class="result-hero">
-        <div style="font-size:50px; margin-bottom:6px;">🏆</div>
-        <div class="stamp clear">おつかれさま！</div>
-        <p class="sub" style="margin-top:4px;">今日は ${state.history.length}問中 ${clearedN}問 アイスブレイクに成功しました</p>
+        <div style="width:60px; margin:0 auto 12px; color:var(--yellow);">${SVGS.trophy}</div>
+        <div class="stamp clear" style="font-size:28px;">おつかれさま！</div>
+        <p class="sub" style="margin-top:8px;">今日は ${state.history.length}問中 ${clearedN}問 アイスブレイクに成功しました</p>
       </div>
       <div class="card">
-        <div class="eyebrow" style="margin-bottom:10px;">今日の成績</div>
+        <div class="eyebrow" style="margin-bottom:12px;">今日の成績</div>
         <ul class="plist">
-          ${state.history.map(h=>`<li><div class="avatar">${h.cleared?'🧊':'💥'}</div>「${h.question}」（出題：${h.questioner}）<span class="chip" style="margin-left:auto;">${h.cleared?'成功':'時間切れ'}</span></li>`).join('') || '<li style="color:var(--text-dim);">記録がありません</li>'}
+          ${state.history.map(h=>`<li><div class="avatar">${h.cleared ? '<span style="width:20px;">'+SVGS.ice+'</span>' : '<span style="width:20px;">'+SVGS.explosion+'</span>'}</div><div style="flex:1;">${h.question}<br><span style="font-size:11px; color:var(--text-dim);">出題: ${h.questioner}</span></div><span class="chip">${h.cleared?'成功':'失敗'}</span></li>`).join('') || '<li style="color:var(--text-dim);">記録がありません</li>'}
         </ul>
       </div>
       <div class="card">
@@ -1990,19 +1235,10 @@ function screenFinalResult(){
 }
 
 const SCREENS = {
-  title: screenTitle,
-  nickname: screenNickname,
-  roomCreate: screenRoomCreate,
-  roomJoin: screenRoomJoin,
-  waitingRoom: screenWaitingRoom,
-  modeSelect: screenModeSelect,
-  introPrep: screenIntroPrep,
-  introRunning: screenIntroRunning,
-  quizStartGate: screenQuizStartGate,
-  quizPrep: screenQuizPrep,
-  quizActive: screenQuizActive,
-  quizRoundResult: screenQuizRoundResult,
-  finalResult: screenFinalResult,
+  title: screenTitle, nickname: screenNickname, roomCreate: screenRoomCreate, roomJoin: screenRoomJoin,
+  waitingRoom: screenWaitingRoom, modeSelect: screenModeSelect, introPrep: screenIntroPrep, introRunning: screenIntroRunning,
+  quizStartGate: screenQuizStartGate, quizPrep: screenQuizPrep, quizActive: screenQuizActive,
+  quizRoundResult: screenQuizRoundResult, finalResult: screenFinalResult,
 };
 
 setupChrome();
