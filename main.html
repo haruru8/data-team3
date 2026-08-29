@@ -235,6 +235,22 @@ input[type=text]:focus, input[type=number]:focus { border-color: var(--secondary
 .podium-row { display: flex; align-items: flex-end; gap: 8px; padding-bottom: 0; }
 .podium { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
 
+/* 自己紹介では人数が増えても、名前を省略せず全員表示する */
+.intro-podium-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.intro-podium-row .podium { min-width: 0; }
+.intro-podium-row .stand { height: 100%; }
+.intro-podium-row .stand-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
 /* スタンドの横並び配置など */
 .stand {
   width: 100%; background: #fff; border: 2.5px solid var(--card-border); border-bottom: 5px solid #e2e8f0;
@@ -746,6 +762,7 @@ function screenNickname(){
         <div class="field" style="margin-bottom: 24px;">
           <label class="field-label">ニックネーム</label>
           <input type="text" id="nick" placeholder="例：たくみ" maxlength="10" value="${state.nickname}">
+          <p class="demo-note" style="margin-top:8px;">※ニックネームは10文字以内で入力してください</p>
         </div>
         <div class="choice-grid">
           <div class="choice-card" id="mkRoom">
@@ -952,7 +969,7 @@ function renderIntroPodiums(names, activeIndex){
         </div>
       </div>`;
   }).join('');
-  return `<div class="podium-row">${rows}</div><div class="podium-floor"></div>`;
+  return `<div class="intro-podium-row">${rows}</div><div class="podium-floor"></div>`;
 }
 
 /* ---------- 7. 自己紹介：進行中 ---------- */
