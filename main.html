@@ -438,6 +438,12 @@ let peer = null; let hostConnection = null; let guestConnections = []; let myPee
 const correctSound = new Audio('./sounds/correct.mp3'); const wrongSound = new Audio('./sounds/wrong.mp3');
 correctSound.preload = 'auto'; wrongSound.preload = 'auto';
 
+function playGameSound(type){
+  const sound = type === 'correct' ? correctSound : wrongSound;
+  sound.currentTime = 0;
+  sound.play().catch(error=>console.warn('音声を再生できませんでした:', error));
+}
+
 const QUESTIONS = [
   () => `${state.questioner}さんの好きな映画・ドラマのジャンルを${state.answererOrder.length}つ答えよ！`,
   () => `${state.questioner}さんの好きな旅行先を${state.answererOrder.length}つ答えよ！`,
@@ -517,6 +523,12 @@ function broadcastEffect(effect){
   guestConnections.filter(conn=>conn.open).forEach(conn=>conn.send({type:'PLAY_EFFECT', effect}));
 }
 
+function broadcastSound(sound){
+  if(!state.isHost) return;
+  playGameSound(sound);
+  guestConnections.filter(conn=>conn.open).forEach(conn=>conn.send({type:'PLAY_SOUND', sound}));
+}
+
 function applySharedState(nextState, renderRequired = true){
   const previous = sharedState(); const previousPhase = SCREEN_PHASE[previous.screen] || 'ice';
   const local = { nickname:state.nickname, isHost:state.isHost, viewAs:state.viewAs, introTimerHandle:state.introTimerHandle, prepHandle:state.prepHandle, quizHandle:state.quizHandle };
@@ -592,6 +604,7 @@ function handleHostMessage(data){
     render();
   }
   if(data.type === 'PLAY_EFFECT'){ if(data.effect === 'iceBreak') showIceBreak(()=>{}); if(data.effect === 'explosion') showExplosion(()=>{}); }
+  if(data.type === 'PLAY_SOUND'){ playGameSound(data.sound); }
 }
 function removeGuest(peerId){
   if(!state.isHost || !['roomCreate','waitingRoom'].includes(state.screen)) return;
@@ -634,8 +647,8 @@ function performAction(action){
     const options = QUESTIONS.filter(createQuestion=>createQuestion() !== state.question); state.question = options[Math.floor(Math.random()*options.length)](); broadcastState(); render();
   } else if(action === 'DECIDE_QUESTION'){ clearInterval(state.prepHandle); state.quizTimer = state.roundTimeTotal; go('quizActive');
   } else if(action === 'HINT'){ state.hintUsed = true; broadcastState(); render();
-  } else if(action === 'JUDGE_CORRECT'){ handleCorrectAnswer();
-  } else if(action === 'JUDGE_WRONG'){ broadcastState();
+  } else if(action === 'JUDGE_CORRECT'){ broadcastSound('correct'); handleCorrectAnswer();
+  } else if(action === 'JUDGE_WRONG'){ broadcastSound('wrong'); broadcastState();
   } else if(action === 'PLAY_AGAIN'){ state.history.push({questioner:state.questioner, question:state.question, cleared:state.cleared}); state.quizIndex++; startQuizRound();
   } else if(action === 'END_GAME'){ state.history.push({questioner:state.questioner, question:state.question, cleared:state.cleared}); go('finalResult'); }
 }
@@ -1119,9 +1132,9 @@ function screenQuizActive(){
             <button class="btn-circle btn-ng" id="ng">×</button>
           </div>
         </div>`;
-      wrap.querySelector('#ok').onclick = ()=>{ correctSound.currentTime=0; correctSound.play(); requestAction('JUDGE_CORRECT'); };
+      wrap.querySelector('#ok').onclick = ()=>requestAction('JUDGE_CORRECT');
       wrap.querySelector('#ng').onclick = ()=>{
-        wrongSound.currentTime=0; wrongSound.play(); requestAction('JUDGE_WRONG');
+        requestAction('JUDGE_WRONG');
         const flash = document.createElement('div'); flash.textContent = '❌ 不正解！同じ人が続けて回答します';
         flash.style.cssText = 'color:var(--bad); font-size:12px; font-weight:800; text-align:center; margin-top:14px;';
         wrap.appendChild(flash); setTimeout(()=>flash.remove(), 1400);
