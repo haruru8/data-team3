@@ -459,21 +459,10 @@ function playGameSound(type){
 }
 
 const QUESTIONS = [
-  () => `${state.questioner}さんの好きな映画・ドラマのジャンルを${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんの好きな旅行先を${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんが休日にやりがちなことを${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんの好きな食べ物を${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんの好きな曲・アーティストを${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんが行ったことのある都道府県を${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんがコンビニでよく買うものを${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんの好きな季節のイベントを${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんが地味にこだわっていることを${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんが最近ハマっているものを${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんの苦手なものを${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんの得意なことを${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんが人より少し詳しい分野を${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんが1週間休みをもらったらやりたいことを${state.answererOrder.length}つ答えよ！`,
-  () => `${state.questioner}さんが100万円をもらったら使いたいことを${state.answererOrder.length}つ答えよ！`
+  () => `${state.questioner}さんが苦手なものは？`,
+  () => `${state.questioner}さんが得意なことは？`,
+  () => `${state.questioner}さんが人よりちょっと詳しい分野は？`,
+  () => `${state.questioner}さんがもし1週間休みがあったらやりたいことは？`
 ];
 
 function el(html){ const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
