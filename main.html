@@ -816,29 +816,36 @@ function screenModeSelect(){
     <div class="screen">
       <div class="eyebrow">ROOM · ${state.roomCode}</div>
       <h1 class="page-title">今日は何をする？</h1>
-      <p class="sub">想定時間の目安を見て選んでください</p>
+      <p class="sub">${state.isHost ? '想定時間の目安を見て選んでください' : '想定時間と内容を確認してください'}</p>
       <div class="time-strip">
         <div class="box"><div class="n">約${introTime}分</div><div class="l">自己紹介（30秒×${state.participants.length}人）</div></div>
         <div class="box"><div class="n">約${quizTime}分</div><div class="l">クイズ1周（1問30秒目安）</div></div>
       </div>
-      <div class="choice-card" style="display:flex; align-items:center; gap:16px; text-align:left; padding:20px; margin-bottom:14px;" id="withIntro">
+      <div class="choice-card" style="display:flex; align-items:center; gap:16px; text-align:left; padding:20px; margin-bottom:14px;${state.isHost ? '' : ' opacity:.65; pointer-events:none; cursor:default;'}" id="withIntro">
         <div style="font-size:42px; width:50px; flex-shrink:0;">${SVGS.chat}</div>
         <div>
           <div style="font-family:var(--font-display); font-weight:800; font-size:15px; color:var(--text-main);">自己紹介してからクイズ</div>
           <div style="font-size:12px; color:var(--text-dim); margin-top:2px;">初対面が多いときにおすすめ</div>
         </div>
       </div>
-      <div class="choice-card" style="display:flex; align-items:center; gap:16px; text-align:left; padding:20px;" id="quizOnly">
+      <div class="choice-card" style="display:flex; align-items:center; gap:16px; text-align:left; padding:20px;${state.isHost ? '' : ' opacity:.65; pointer-events:none; cursor:default;'}" id="quizOnly">
         <div style="font-size:42px; width:50px; flex-shrink:0;">${SVGS.bomb}</div>
         <div>
           <div style="font-family:var(--font-display); font-weight:800; font-size:15px; color:var(--text-main);">クイズだけ</div>
           <div style="font-size:12px; color:var(--text-dim); margin-top:2px;">すぐに盛り上がりたいときに</div>
         </div>
       </div>
+      ${state.isHost ? '' : `
+      <div class="card" style="text-align:center; color:var(--text-dim); font-size:13px; padding:24px; margin-top:18px;">
+        主催者が内容を選んでいます…
+      </div>
+      `}
     </div>
   `);
-  node.querySelector('#withIntro').onclick = ()=>{ if(!state.isHost) return; state.mode = 'intro_quiz'; state.introIndex = 0; go('introPrep'); };
-  node.querySelector('#quizOnly').onclick = ()=>{ if(!state.isHost) return; state.mode = 'quiz_only'; state.questioner = null; go('quizStartGate'); };
+  const withIntro = node.querySelector('#withIntro');
+  if(state.isHost && withIntro) withIntro.onclick = ()=>{ state.mode = 'intro_quiz'; state.introIndex = 0; go('introPrep'); };
+  const quizOnly = node.querySelector('#quizOnly');
+  if(state.isHost && quizOnly) quizOnly.onclick = ()=>{ state.mode = 'quiz_only'; state.questioner = null; go('quizStartGate'); };
   return node;
 }
 
