@@ -475,10 +475,21 @@ function playGameSound(type){
 }
 
 const QUESTIONS = [
+  () => `${state.questioner}さんが好きな映画・ドラマのジャンルは？`,
+  () => `${state.questioner}さんが好きな旅行先のタイプは？`,
+  () => `${state.questioner}さんが休日にやりがちな過ごし方は？`,
+  () => `${state.questioner}さんが好きな食べ物は？`,
+  () => `${state.questioner}さんが好きな曲・アーティストは？`,
+  () => `${state.questioner}さんが行ったことのある都道府県は？`,
+  () => `${state.questioner}さんがコンビニでよく買うものは？`,
+  () => `${state.questioner}さんが好きな季節のイベントは？`,
+  () => `${state.questioner}さんが地味にこだわっていることは？`,
+  () => `${state.questioner}さんが最近ハマっているものは？`,
   () => `${state.questioner}さんが苦手なものは？`,
   () => `${state.questioner}さんが得意なことは？`,
   () => `${state.questioner}さんが人よりちょっと詳しい分野は？`,
-  () => `${state.questioner}さんがもし1週間休みがあったらやりたいことは？`
+  () => `${state.questioner}さんがもし1週間休みがあったらやりたいことは？`,
+  () => `${state.questioner}さんに100万円あげたら使い道は？`
 ];
 
 function el(html){ const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
@@ -898,15 +909,26 @@ function screenWaitingRoom(){
 
 /* ---------- 5. 何をするか選択 ---------- */
 function screenModeSelect(){
-  const introTime = state.participants.length * 0.5; const quizTime = state.participants.length * 1.5;
+  const introTotalSeconds = state.participants.length * 30;
+  const introMinutes = Math.floor(introTotalSeconds / 60);
+  const introSeconds = introTotalSeconds % 60;
+  const introTime = introMinutes > 0
+    ? `${introMinutes}分${introSeconds > 0 ? `${introSeconds}秒` : ''}`
+    : `${introSeconds}秒`;
+  const quizTotalSeconds = 15 + Math.max(0, state.participants.length - 1) * 10;
+  const quizMinutes = Math.floor(quizTotalSeconds / 60);
+  const quizSeconds = quizTotalSeconds % 60;
+  const quizTime = quizMinutes > 0
+    ? `${quizMinutes}分${quizSeconds > 0 ? `${quizSeconds}秒` : ''}`
+    : `${quizSeconds}秒`;
   const node = el(`
     <div class="screen">
       <div class="eyebrow">ROOM · ${state.roomCode}</div>
       <h1 class="page-title">今日は何をする？</h1>
       <p class="sub">${state.isHost ? '想定時間の目安を見て選んでください' : '想定時間と内容を確認してください'}</p>
       <div class="time-strip">
-        <div class="box"><div class="n">約${introTime}分</div><div class="l">自己紹介（30秒×${state.participants.length}人）</div></div>
-        <div class="box"><div class="n">約${quizTime}分</div><div class="l">クイズ1周（1問30秒目安）</div></div>
+        <div class="box"><div class="n">約${introTime}</div><div class="l">自己紹介（一人当たり30秒）</div></div>
+        <div class="box"><div class="n">約${quizTime}</div><div class="l">クイズ1周（15秒+回答者1人当たり10秒）</div></div>
       </div>
       <div class="choice-card" style="display:flex; align-items:center; gap:16px; text-align:left; padding:20px; margin-bottom:14px;${state.isHost ? '' : ' opacity:.65; pointer-events:none; cursor:default;'}" id="withIntro">
         <div style="font-size:42px; width:50px; flex-shrink:0;">${SVGS.chat}</div>
